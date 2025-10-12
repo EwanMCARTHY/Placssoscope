@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainView = document.getElementById('main-view');
     const historyView = document.getElementById('history-view');
     const profileView = document.getElementById('profile-view');
+    const friendsView = document.getElementById('friends-view');
 
     // --- Éléments d'authentification ---
     const authForm = document.getElementById('auth-form');
@@ -17,12 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const welcomeMessage = document.getElementById('welcome-message');
 
     // --- Éléments de la page principale ---
+    const infoBtn = document.getElementById('info-btn');
     const sendScoreBtn = document.getElementById('send-score-btn');
     const showHistoryBtn = document.getElementById('show-history-btn');
     const scoreValueDisplay = document.getElementById('score-value-display');
-    const infoBtn = document.getElementById('info-btn');
-    const infoModal = document.getElementById('info-modal');
-    const closeInfoModalBtn = document.getElementById('close-info-modal-btn');
     
     // --- Éléments de la page d'historique ---
     const backToMainBtn = document.getElementById('back-to-main-btn');
@@ -48,7 +47,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadSubmitBtn = document.getElementById('upload-submit-btn');
     const profilePicDisplay = document.getElementById('profile-pic-display');
 
+    // --- Éléments de la page Amis ---
+    const friendsBtn = document.getElementById('friends-btn');
+    const backToMainFromFriendsBtn = document.getElementById('back-to-main-from-friends-btn');
+    const tabLinks = document.querySelectorAll('.tab-link');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const requestsCountBadge = document.getElementById('requests-count-badge');
+    const friendRequestsList = document.getElementById('friend-requests-list');
+    const userSearchInput = document.getElementById('user-search-input');
+    const userSearchResults = document.getElementById('user-search-results');
+    const friendsList = document.getElementById('friends-list');
+
     // --- Éléments des modales ---
+    const infoModal = document.getElementById('info-modal');
+    const closeInfoModalBtn = document.getElementById('close-info-modal-btn');
     const editModal = document.getElementById('edit-modal');
     const editScoreInput = document.getElementById('edit-score-input');
     const saveEditBtn = document.getElementById('save-edit-btn');
@@ -66,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let scoreIdToUpdate = null;
     let dayToRename = null;
     let allScoresData = {};
+    let searchTimeout;
 
     // =========================================================================
     // --- GESTION DE L'AUTHENTIFICATION ET DE LA SESSION ---
@@ -78,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         switchAuthBtn.textContent = isLoginMode ? 'Pas de compte ? S\'inscrire' : 'Déjà un compte ? Se connecter';
         errorMessage.style.display = 'none';
         authForm.reset();
-        document.getElementById('remember-me').checked = true; // Garde la case cochée
+        document.getElementById('remember-me').checked = true;
     }
 
     async function handleAuth(event) {
@@ -172,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function switchView(viewToShow) {
-        [authView, mainView, historyView, profileView].forEach(v => v.classList.remove('active-view'));
+        [authView, mainView, historyView, profileView, friendsView].forEach(v => v.classList.remove('active-view'));
         viewToShow.classList.add('active-view');
         listContainer.classList.remove('visible');
         toggleListBtn.textContent = 'Afficher la liste';
@@ -196,21 +209,137 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelector('.score-input-container').innerHTML = `<p style="color: var(--error-color);">Erreur: Le composant de score n'a pas pu charger.</p>`;
         }
     }
+
+    // =========================================================================
+    // --- GESTION DE LA PAGE AMIS ---
+    // =========================================================================
+
+    function openFriendsPage() {
+        switchView(friendsView);
+        switchTab(document.querySelector('.tab-link[data-tab="tab-requests"]'));
+        loadFriendRequests();
+        loadFriendsList();
+    }
+
+    function switchTab(clickedTab) {
+        tabLinks.forEach(link => link.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+        clickedTab.classList.add('active');
+        document.getElementById(clickedTab.dataset.tab).classList.add('active');
+    }
+
+    async function loadFriendRequests() {
+        try {
+            const response = await fetch('api/get_friend_requests.php');
+            const requests = await response.json();
+            friendRequestsList.innerHTML = '';
+            if (requests.length === 0) {
+                friendRequestsList.innerHTML = '<p>Aucune demande d\'ami en attente.</p>';
+                requestsCountBadge.style.display = 'none';
+                return;
+            }
+            requestsCountBadge.textContent = requests.length;
+            requestsCountBadge.style.display = 'block';
+            requests.forEach(req => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.innerHTML = `
+                    <img src="${req.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
+                    <div class="user-item-info">${req.username}</div>
+                    <div class="user-item-actions">
+                        <button class="btn-icon accept" data-friendship-id="${req.friendship_id}" title="Accepter"><i class="material-icons">check</i></button>
+                        <button class="btn-icon decline" data-friendship-id="${req.friendship_id}" title="Refuser"><i class="material-icons">close</i></button>
+                    </div>
+                `;
+                friendRequestsList.appendChild(userItem);
+            });
+        } catch (error) {
+            console.error('Erreur lors du chargement des demandes d\'ami:', error);
+            friendRequestsList.innerHTML = '<p style="color: var(--error-color);">Erreur de chargement.</p>';
+        }
+    }
+
+    async function handleFriendRequestResponse(friendshipId, action) {
+        try {
+            const response = await fetch('api/respond_to_friend_request.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ friendship_id: friendshipId, action })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                loadFriendRequests();
+                loadFriendsList();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            alert(`Erreur: ${error.message}`);
+        }
+    }
+
+    async function searchUsers(query) {
+        if (query.length < 2) {
+            userSearchResults.innerHTML = '';
+            return;
+        }
+        try {
+            const response = await fetch(`api/search_users.php?query=${encodeURIComponent(query)}`);
+            const users = await response.json();
+            userSearchResults.innerHTML = '';
+            if (users.length === 0) {
+                userSearchResults.innerHTML = '<p>Aucun utilisateur trouvé.</p>';
+                return;
+            }
+            users.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.innerHTML = `
+                    <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
+                    <div class="user-item-info">${user.username}</div>
+                    <div class="user-item-actions">
+                        <button class="btn-icon add-friend" data-user-id="${user.id}" title="Ajouter en ami"><i class="material-icons">person_add</i></button>
+                    </div>
+                `;
+                userSearchResults.appendChild(userItem);
+            });
+        } catch (error) {
+            console.error('Erreur de recherche:', error);
+        }
+    }
+    
+    async function sendFriendRequest(recipientId) {
+        try {
+            const response = await fetch('api/send_friend_request.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipient_id: recipientId })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert('Demande d\'ami envoyée !');
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            alert(`Erreur: ${error.message}`);
+        }
+    }
+    
+    async function loadFriendsList() {
+        friendsList.innerHTML = "<p><em>Fonctionnalité à venir...</em></p>";
+    }
     
     // =========================================================================
     // --- GESTION DES ACTIONS (PROFIL, SCORES, ETC.) ---
     // =========================================================================
-
+    
     async function handlePictureUpload(event) {
         event.preventDefault();
         const formData = new FormData();
         formData.append('profile_picture', pictureInput.files[0]);
-
         try {
-            const response = await fetch('api/upload_picture.php', {
-                method: 'POST',
-                body: formData
-            });
+            const response = await fetch('api/upload_picture.php', { method: 'POST', body: formData });
             const result = await response.json();
             if (response.ok && result.success) {
                 alert('Photo de profil mise à jour !');
@@ -235,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Le nom d'utilisateur ne peut pas être vide.");
             return;
         }
-
         try {
             const response = await fetch('api/change_username.php', {
                 method: 'POST',
@@ -261,12 +389,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentPassword = document.getElementById('current-password').value;
         const newPassword = document.getElementById('new-password').value;
         const confirmPassword = document.getElementById('confirm-password').value;
-
         if (newPassword !== confirmPassword) {
             alert("Les nouveaux mots de passe ne correspondent pas.");
             return;
         }
-
         try {
             const response = await fetch('api/change_password.php', {
                 method: 'POST',
@@ -291,7 +417,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Suppression annulée.');
             return;
         }
-
         try {
             const response = await fetch('api/delete_account.php', { method: 'POST' });
             const result = await response.json();
@@ -548,22 +673,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
     // =========================================================================
-
-    // Gestion de la modale d'information
-    infoBtn.addEventListener('click', () => {
-        infoModal.classList.add('visible');
-    });
-
-    closeInfoModalBtn.addEventListener('click', () => {
-        infoModal.classList.remove('visible');
-    });
-
-    // Ferme la modale si on clique en dehors
-    infoModal.addEventListener('click', (e) => {
-        if (e.target === infoModal) {
-            infoModal.classList.remove('visible');
-        }
-    });
     
     // Authentification et Profil
     switchAuthBtn.addEventListener('click', switchAuthMode);
@@ -584,11 +693,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Navigation principale
+    // Page Amis
+    friendsBtn.addEventListener('click', openFriendsPage);
+    backToMainFromFriendsBtn.addEventListener('click', () => switchView(mainView));
+    tabLinks.forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab));
+    });
+    friendRequestsList.addEventListener('click', (e) => {
+        const acceptBtn = e.target.closest('.accept');
+        const declineBtn = e.target.closest('.decline');
+        if (acceptBtn) handleFriendRequestResponse(acceptBtn.dataset.friendshipId, 'accept');
+        if (declineBtn) handleFriendRequestResponse(declineBtn.dataset.friendshipId, 'decline');
+    });
+    userSearchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchUsers(e.target.value);
+        }, 300);
+    });
+    userSearchResults.addEventListener('click', (e) => {
+        const addBtn = e.target.closest('.add-friend');
+        if (addBtn) {
+            addBtn.disabled = true;
+            sendFriendRequest(addBtn.dataset.userId);
+        }
+    });
+
+    // Navigation principale et actions
+    infoBtn.addEventListener('click', () => infoModal.classList.add('visible'));
+    closeInfoModalBtn.addEventListener('click', () => infoModal.classList.remove('visible'));
+    infoModal.addEventListener('click', (e) => { if (e.target === infoModal) infoModal.classList.remove('visible'); });
     showHistoryBtn.addEventListener('click', () => { switchView(historyView); fetchAndDisplayScores(); });
     backToMainBtn.addEventListener('click', () => switchView(mainView));
-    
-    // Actions
     sendScoreBtn.addEventListener('click', sendScore);
     toggleListBtn.addEventListener('click', () => { listContainer.classList.toggle('visible'); toggleListBtn.textContent = listContainer.classList.contains('visible') ? 'Masquer la liste' : 'Afficher la liste'; });
     
@@ -611,12 +747,10 @@ document.addEventListener('DOMContentLoaded', () => {
     selectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = true); chartFilterList.dispatchEvent(new Event('change')); });
     deselectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = false); chartFilterList.dispatchEvent(new Event('change')); });
 
-    // --- GESTION DE L'ACCORDÉON DANS LE PROFIL ---
+    // GESTION DE L'ACCORDÉON
     const accordionHeaders = document.querySelectorAll('.accordion-header');
-
     accordionHeaders.forEach(header => {
         header.addEventListener('click', () => {
-            // Ferme les autres accordéons ouverts
             accordionHeaders.forEach(otherHeader => {
                 if (otherHeader !== header && otherHeader.classList.contains('active')) {
                     otherHeader.classList.remove('active');
@@ -624,13 +758,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Ouvre ou ferme l'accordéon cliqué
             header.classList.toggle('active');
             const panel = header.nextElementSibling;
             if (panel.style.maxHeight) {
-                panel.style.maxHeight = null; // Ferme
+                panel.style.maxHeight = null;
             } else {
-                panel.style.maxHeight = panel.scrollHeight + "px"; // Ouvre
+                panel.style.maxHeight = panel.scrollHeight + "px";
             }
         });
     });

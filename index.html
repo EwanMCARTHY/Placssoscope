@@ -42,6 +42,7 @@
                 <button id="info-btn" class="btn-icon" title="Informations"><i class="material-icons">info_outline</i></button>
                 <span id="welcome-message"></span>
                 <div class="header-actions">
+                    <button id="friends-btn" class="btn-icon" title="Amis"><i class="material-icons">people</i></button>
                     <button id="profile-btn" class="btn-icon" title="Mon Profil"><i class="material-icons">person</i></button>
                     <button id="logout-btn" class="btn-icon" title="Se déconnecter"><i class="material-icons">logout</i></button>
                 </div>
@@ -102,7 +103,6 @@
                         <button type="submit" id="upload-submit-btn" class="btn btn-primary" style="display: none;">Enregistrer</button>
                     </form>
                 </div>
-
                 <div class="accordion">
                     <button class="accordion-header">
                         <span>Changer de nom d'utilisateur</span>
@@ -116,7 +116,6 @@
                             </form>
                         </div>
                     </div>
-
                     <button class="accordion-header">
                         <span>Changer le mot de passe</span>
                         <i class="material-icons">expand_more</i>
@@ -133,11 +132,36 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="profile-section">
                     <h3>Zone de danger</h3>
                     <p>Cette action est irréversible. Toutes vos données seront effacées.</p>
                     <button id="delete-account-btn" class="btn btn-danger">Supprimer mon compte</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="friends-view" class="view">
+            <div class="history-header">
+                <h2>Amis</h2>
+                <button id="back-to-main-from-friends-btn" class="btn-icon" title="Retour"><i class="material-icons">arrow_back</i></button>
+            </div>
+            <div class="friends-content">
+                <div class="tabs">
+                    <button class="tab-link active" data-tab="tab-requests">Demandes <span id="requests-count-badge" class="badge"></span></button>
+                    <button class="tab-link" data-tab="tab-friends-list">Mes Amis</button>
+                    <button class="tab-link" data-tab="tab-add-friend">Ajouter</button>
+                </div>
+                <div id="tab-requests" class="tab-content active">
+                    <div id="friend-requests-list" class="user-list"></div>
+                </div>
+                <div id="tab-friends-list" class="tab-content">
+                    <div id="friends-list" class="user-list"></div>
+                </div>
+                <div id="tab-add-friend" class="tab-content">
+                    <div class="search-container">
+                        <input type="search" id="user-search-input" class="modal-input" placeholder="Rechercher un utilisateur...">
+                    </div>
+                    <div id="user-search-results" class="user-list"></div>
                 </div>
             </div>
         </div>
@@ -154,7 +178,6 @@
             <button id="close-info-modal-btn" class="btn btn-secondary">Fermer</button>
         </div>
     </div>
-
     <div id="edit-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Modifier le score</h3>
@@ -165,7 +188,6 @@
             </div>
         </div>
     </div>
-
     <div id="rename-day-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Renommer la journée</h3>
