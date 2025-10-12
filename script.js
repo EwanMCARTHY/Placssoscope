@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelector('.score-input-container').innerHTML = `<p style="color: var(--error-color);">Erreur: Le composant de score n'a pas pu charger.</p>`;
         }
     }
-
+    
     // =========================================================================
     // --- GESTION DE LA PAGE AMIS ---
     // =========================================================================
@@ -327,7 +327,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function loadFriendsList() {
-        friendsList.innerHTML = "<p><em>Fonctionnalité à venir...</em></p>";
+        try {
+            const response = await fetch('api/get_friends.php');
+            const friends = await response.json();
+            friendsList.innerHTML = '';
+            if (friends.length === 0) {
+                friendsList.innerHTML = '<p>Vous n\'avez aucun ami pour le moment.</p>';
+                return;
+            }
+            friends.forEach(friend => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.innerHTML = `
+                    <img src="${friend.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
+                    <div class="user-item-info">${friend.username}</div>
+                    <div class="user-item-actions">
+                        <button class="btn-icon remove-friend decline" data-friendship-id="${friend.friendship_id}" title="Supprimer l'ami"><i class="material-icons">person_remove</i></button>
+                    </div>
+                `;
+                friendsList.appendChild(userItem);
+            });
+        } catch (error) {
+            console.error('Erreur lors du chargement de la liste d\'amis:', error);
+            friendsList.innerHTML = '<p style="color: var(--error-color);">Erreur de chargement.</p>';
+        }
+    }
+
+    async function removeFriend(friendshipId) {
+        if (!confirm("Êtes-vous sûr de vouloir supprimer cet ami ?")) {
+            return;
+        }
+        try {
+            const response = await fetch('api/remove_friend.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ friendship_id: friendshipId })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                loadFriendsList();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            alert(`Erreur: ${error.message}`);
+        }
     }
     
     // =========================================================================
@@ -718,6 +762,12 @@ document.addEventListener('DOMContentLoaded', () => {
             sendFriendRequest(addBtn.dataset.userId);
         }
     });
+    friendsList.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.remove-friend');
+        if (removeBtn) {
+            removeFriend(removeBtn.dataset.friendshipId);
+        }
+    });
 
     // Navigation principale et actions
     infoBtn.addEventListener('click', () => infoModal.classList.add('visible'));
@@ -771,3 +821,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DÉMARRAGE DE L'APPLICATION ---
     checkSession();
 });
+
