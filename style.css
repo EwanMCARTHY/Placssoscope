@@ -196,54 +196,52 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 .user-item-actions .btn-icon.decline { color: var(--error-color); }
 
 /* ==========================================================================
-   STYLES POUR LA MODALE D'INFORMATION
+   STYLES POUR LA MODALE D'INFORMATION ET NOTIFICATIONS
    ========================================================================== */
 #info-btn { margin-right: auto; }
 .info-content { text-align: left; margin: 24px 0; font-size: 0.95rem; line-height: 1.6; }
 .info-content p { margin-bottom: 16px; }
 .info-signature { margin-top: 24px; font-size: 0.85rem; text-align: center; color: var(--on-surface-color); opacity: 0.8; }
 #close-info-modal-btn { width: 100%; }
+.btn-icon.has-notification::after { content: ''; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background-color: var(--error-color); border-radius: 50%; border: 2px solid var(--background-color); }
 
 /* ==========================================================================
-   STYLE POUR LA NOTIFICATION D'AMIS
-   ========================================================================== */
-.btn-icon.has-notification::after {
-    content: '';
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 8px;
-    height: 8px;
-    background-color: var(--error-color);
-    border-radius: 50%;
-    border: 2px solid var(--background-color);
-}
-
-/* ==========================================================================
-   NOUVEAU : STYLES POUR LES SOIRÉES COMMUNES
+   STYLES POUR LES SOIRÉES COMMUNES (CORRIGÉ)
    ========================================================================== */
 #friend-profile-view { justify-content: flex-start; }
 #friend-profile-username { margin-top: 0; color: var(--on-background-color); }
-.evening-item {
-    background-color: var(--surface-color);
-    border-radius: 12px;
-    padding: 16px;
+.evening-item { background-color: var(--surface-color); border-radius: 12px; padding: 16px; text-align: left; cursor: pointer; transition: background-color 0.2s ease; border-left: 4px solid var(--primary-color); }
+.evening-item:hover { background-color: #333; }
+.evening-item .date { font-weight: 600; font-size: 1.1rem; margin-bottom: 8px; }
+.evening-item .names { font-size: 0.9rem; color: var(--on-surface-color); }
+
+/* CORRECTION DE LA MISE EN PAGE */
+#shared-evening-view { 
+    justify-content: flex-start;
+    overflow: hidden; /* Empêche le débordement global */
+}
+#shared-evening-view .chart-container { 
+    height: 300px; /* Hauteur fixe pour le graphique */
+    flex-shrink: 0; /* Empêche le graphique de se réduire */
+}
+.attendees-container {
+    margin-top: 24px;
     text-align: left;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    border-left: 4px solid var(--primary-color);
+    background-color: var(--surface-color);
+    border-radius: 16px;
+    padding: 16px;
+    flex-grow: 1; /* Permet à ce conteneur de prendre l'espace restant */
+    overflow-y: auto; /* Rend la liste déroulante si elle est trop longue */
+    min-height: 0; /* Astuce flexbox pour que le scroll fonctionne */
 }
-.evening-item:hover {
-    background-color: #333;
-}
-.evening-item .date {
-    font-weight: 600;
-    font-size: 1.1rem;
-    margin-bottom: 8px;
-}
-.evening-item .names {
-    font-size: 0.9rem;
-    color: var(--on-surface-color);
-}
-#shared-evening-view { justify-content: flex-start; }
-#shared-evening-view .chart-container { height: calc(100% - 80px); }
+.attendees-container h3 { margin-top: 0; font-size: 1rem; color: var(--on-background-color); border-bottom: 1px solid #333; padding-bottom: 12px; margin-bottom: 12px; }
+.attendees-container .user-item { background-color: transparent; padding: 8px; }
+
+/* Style pour l'interrupteur (toggle switch) */
+.graph-toggle { position: relative; display: inline-block; width: 40px; height: 22px; }
+.graph-toggle input { opacity: 0; width: 0; height: 0; }
+.graph-toggle .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 22px; }
+.graph-toggle .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+.graph-toggle input:checked + .slider { background-color: var(--primary-color); }
+.graph-toggle input:checked + .slider:before { transform: translateX(18px); }
+

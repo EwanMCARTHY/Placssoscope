@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Éléments de la Soirée Partagée ---
     const backToFriendProfileBtn = document.getElementById('back-to-friend-profile-btn');
     const sharedEveningTitle = document.getElementById('shared-evening-title');
+    const attendeesList = document.getElementById('attendees-list');
 
     // --- Éléments des modales ---
     const infoModal = document.getElementById('info-modal');
@@ -88,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUser = null;
     let currentlyViewedFriend = null;
     let sharedScoresChart;
+    let eveningAttendees = [];
     let currentScore = 5.0;
     let scoresChart;
     let scoreIdToUpdate = null;
@@ -426,15 +428,12 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`api/get_common_evenings.php?friend_id=${friend.user_id}`);
             const eveningsData = await response.json();
-            
             const evenings = Array.isArray(eveningsData) ? eveningsData : Object.values(eveningsData);
-
             commonEveningsList.innerHTML = '';
             if (evenings.length === 0) {
                 commonEveningsList.innerHTML = '<p>Aucune soirée en commun trouvée.</p>';
                 return;
             }
-
             evenings.forEach(evening => {
                 const eveningItem = document.createElement('div');
                 eveningItem.className = 'evening-item';
@@ -459,14 +458,89 @@ document.addEventListener('DOMContentLoaded', () => {
         const formattedDate = new Date(date).toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' });
         sharedEveningTitle.textContent = `Soirée du ${formattedDate}`;
         switchView(sharedEveningView);
+        attendeesList.innerHTML = '';
 
         try {
-            const response = await fetch(`api/get_evening_scores.php?friend_id=${currentlyViewedFriend.user_id}&date=${date}`);
-            const data = await response.json();
-            displaySharedChart(data.my_scores, data.friend_scores);
+            const scoresResponse = await fetch(`api/get_evening_scores.php?friend_id=${currentlyViewedFriend.user_id}&date=${date}`);
+            const scoresData = await scoresResponse.json();
+            loadEveningAttendees(date);
+            displaySharedChart(scoresData.my_scores, scoresData.friend_scores);
         } catch (error) {
             console.error("Erreur lors du chargement des scores partagés:", error);
         }
+    }
+
+    async function loadEveningAttendees(date) {
+        try {
+            const response = await fetch(`api/get_evening_attendees.php?date=${date}`);
+            eveningAttendees = await response.json();
+            attendeesList.innerHTML = '';
+            const container = document.querySelector('.attendees-container');
+            if (eveningAttendees.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+            eveningAttendees.forEach(attendee => {
+                if (attendee.user_id === currentlyViewedFriend.user_id) return;
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.innerHTML = `
+                    <img src="${attendee.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
+                    <div class="user-item-info">${attendee.username}</div>
+                    <div class="user-item-actions">
+                        <label class="graph-toggle">
+                            <input type="checkbox" class="attendee-toggle" data-user-id="${attendee.user_id}">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                `;
+                attendeesList.appendChild(userItem);
+            });
+        } catch (error) {
+            console.error("Erreur lors du chargement des participants:", error);
+        }
+    }
+
+    async function toggleAttendeeOnGraph(userId, add) {
+        if (!sharedScoresChart) return;
+        if (add) {
+            try {
+                const response = await fetch(`api/get_evening_scores.php?friend_id=${userId}&date=${sharedEveningView.dataset.date}`);
+                const data = await response.json();
+                const attendeeData = eveningAttendees.find(a => a.user_id == userId);
+                if (!attendeeData) return;
+                const newDataset = createDataset(data.friend_scores, attendeeData, sharedScoresChart.data.datasets.length);
+                sharedScoresChart.data.datasets.push(newDataset);
+                sharedScoresChart.update();
+            } catch (error) {
+                console.error("Erreur lors de l'ajout de l'ami au graphique:", error);
+            }
+        } else {
+            const datasetIndex = sharedScoresChart.data.datasets.findIndex(ds => ds.userId == userId);
+            if (datasetIndex > -1) {
+                sharedScoresChart.data.datasets.splice(datasetIndex, 1);
+                sharedScoresChart.update();
+            }
+        }
+    }
+
+    function createDataset(scores, user, colorIndex = 0) {
+        const getTimeValue = (dateString) => {
+            const date = new Date(dateString);
+            let timeValue = date.getHours() + date.getMinutes() / 60;
+            if (date.getHours() < 10) timeValue += 24;
+            return timeValue;
+        };
+        const color = `hsl(${(150 + colorIndex * 60) % 360}, 70%, 60%)`;
+        return {
+            label: user.username,
+            userId: user.user_id,
+            data: (scores || []).map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })).sort((a,b) => a.x - b.x),
+            borderColor: color,
+            backgroundColor: `${color}33`,
+            tension: 0.2
+        };
     }
 
     function displaySharedChart(myScores, friendScores) {
@@ -474,34 +548,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!chartCanvas) return;
         const chartContext = chartCanvas.getContext('2d');
         if (sharedScoresChart) sharedScoresChart.destroy();
-
-        const getTimeValue = (dateString) => {
-            const date = new Date(dateString);
-            let timeValue = date.getHours() + date.getMinutes() / 60;
-            if (date.getHours() < 10) timeValue += 24;
-            return timeValue;
-        };
-
-        const myDataset = {
-            label: currentUser.username,
-            data: (myScores || []).map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })).sort((a,b) => a.x - b.x),
-            borderColor: 'hsl(210, 70%, 60%)',
-            backgroundColor: 'hsla(210, 70%, 60%, 0.2)',
-            tension: 0.2
-        };
-        
-        const friendDataset = {
-            label: currentlyViewedFriend.username,
-            data: (friendScores || []).map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })).sort((a,b) => a.x - b.x),
-            borderColor: 'hsl(150, 70%, 60%)',
-            backgroundColor: 'hsla(150, 70%, 60%, 0.2)',
-            tension: 0.2
-        };
-
+        const myDataset = createDataset(myScores, { username: currentUser.username, user_id: null }, 0);
+        const friendDataset = createDataset(friendScores, { username: currentlyViewedFriend.username, user_id: currentlyViewedFriend.user_id }, 1);
         const textColor = getComputedStyle(document.body).getPropertyValue('--on-surface-color').trim();
         const gridColor = 'rgba(255, 255, 255, 0.1)';
         const { min: axisMin, max: axisMax } = calculateXAxisBounds([myDataset, friendDataset]);
-
         sharedScoresChart = new Chart(chartContext, {
             type: 'line',
             data: { datasets: [myDataset, friendDataset] },
@@ -892,7 +943,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Page Amis
+    // Page Amis et Soirées
     friendsBtn.addEventListener('click', openFriendsPage);
     backToMainFromFriendsBtn.addEventListener('click', () => switchView(mainView));
     tabLinks.forEach(tab => {
@@ -933,7 +984,15 @@ document.addEventListener('DOMContentLoaded', () => {
     commonEveningsList.addEventListener('click', (e) => {
         const eveningItem = e.target.closest('.evening-item');
         if (eveningItem && eveningItem.dataset.date) {
+            sharedEveningView.dataset.date = eveningItem.dataset.date;
             openSharedEvening(eveningItem.dataset.date);
+        }
+    });
+    attendeesList.addEventListener('click', (e) => {
+        const toggle = e.target.closest('.attendee-toggle');
+        if (toggle) {
+            const userId = toggle.dataset.userId;
+            toggleAttendeeOnGraph(userId, toggle.checked);
         }
     });
     backToFriendsListBtn.addEventListener('click', () => switchView(friendsView));
