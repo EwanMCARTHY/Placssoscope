@@ -1,21 +1,32 @@
 <?php
 header('Content-Type: application/json');
+session_start();
+
+// SÉCURITÉ : Vérifier si l'utilisateur est connecté
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401); // Unauthorized
+    echo json_encode(['success' => false, 'error' => 'Utilisateur non connecté.']);
+    exit();
+}
+$user_id = $_SESSION['user_id'];
 
 try {
     $db_path = '../database/scores.db';
     $db = new PDO('sqlite:' . $db_path);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // S'assure que les deux tables existent
-    $db->exec("CREATE TABLE IF NOT EXISTS scores (id INTEGER PRIMARY KEY, score_value REAL, created_at DATETIME)");
-    $db->exec("CREATE TABLE IF NOT EXISTS day_names (day_date TEXT PRIMARY KEY, custom_name TEXT)");
+    // S'assure que les tables existent
+    $db->exec("CREATE TABLE IF NOT EXISTS scores (id INTEGER PRIMARY KEY, user_id INTEGER, score_value REAL, created_at DATETIME)");
+    $db->exec("CREATE TABLE IF NOT EXISTS day_names (day_date TEXT, user_id INTEGER, custom_name TEXT, PRIMARY KEY (day_date, user_id))");
 
-    // 1. Récupérer tous les noms personnalisés
-    $names_stmt = $db->query("SELECT * FROM day_names");
-    $custom_names = $names_stmt->fetchAll(PDO::FETCH_KEY_PAIR); // ['YYYY-MM-DD' => 'Custom Name']
+    // 1. Récupérer tous les noms personnalisés DE L'UTILISATEUR
+    $names_stmt = $db->prepare("SELECT day_date, custom_name FROM day_names WHERE user_id = :user_id");
+    $names_stmt->execute([':user_id' => $user_id]);
+    $custom_names = $names_stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-    // 2. Récupérer tous les scores
-    $scores_stmt = $db->query("SELECT * FROM scores ORDER BY created_at ASC");
+    // 2. Récupérer tous les scores DE L'UTILISATEUR
+    $scores_stmt = $db->prepare("SELECT * FROM scores WHERE user_id = :user_id ORDER BY created_at ASC");
+    $scores_stmt->execute([':user_id' => $user_id]);
     $scores = $scores_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // 3. Organiser les scores par jour et combiner avec les noms
@@ -26,7 +37,6 @@ try {
                    ? date('Y-m-d', strtotime('-1 day', $timestamp)) 
                    : date('Y-m-d', $timestamp);
 
-        // Initialise le groupe pour ce jour s'il n'existe pas
         if (!isset($data_by_day[$day_key])) {
             $data_by_day[$day_key] = [
                 'customName' => isset($custom_names[$day_key]) ? $custom_names[$day_key] : null,

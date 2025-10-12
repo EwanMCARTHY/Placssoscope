@@ -1,7 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Références aux éléments du DOM ---
+    // --- Vues de l'application ---
+    const authView = document.getElementById('auth-view');
     const mainView = document.getElementById('main-view');
     const historyView = document.getElementById('history-view');
+
+    // --- Éléments d'authentification ---
+    const authForm = document.getElementById('auth-form');
+    const authTitle = document.getElementById('auth-title');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
+    const switchAuthBtn = document.getElementById('switch-auth-btn');
+    const errorMessage = document.getElementById('error-message');
+    const logoutBtn = document.getElementById('logout-btn');
+    const welcomeMessage = document.getElementById('welcome-message');
+
+    // --- Éléments de l'application principale ---
     const sendScoreBtn = document.getElementById('send-score-btn');
     const showHistoryBtn = document.getElementById('show-history-btn');
     const backToMainBtn = document.getElementById('back-to-main-btn');
@@ -9,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoresListContainer = document.getElementById('scores-list');
     const toggleListBtn = document.getElementById('toggle-list-btn');
     const listContainer = document.getElementById('list-container');
+
+    // --- Éléments des modales et filtres (inchangés) ---
     const editModal = document.getElementById('edit-modal');
     const editScoreInput = document.getElementById('edit-score-input');
     const saveEditBtn = document.getElementById('save-edit-btn');
@@ -25,120 +41,339 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveRenameBtn = document.getElementById('save-rename-btn');
     const cancelRenameBtn = document.getElementById('cancel-rename-btn');
     
+    // --- Variables d'état ---
+    let isLoginMode = true;
+    let currentUser = null;
     let currentScore = 5.0;
     let scoresChart;
     let scoreIdToUpdate = null;
     let dayToRename = null;
     let allScoresData = {};
 
-    // --- Initialisation du slider circulaire ---
-    try {
-        if ($ && $.fn.roundSlider) {
-            $("#score-slider").roundSlider({
-                radius: 120, width: 22, handleSize: "+8", handleShape: "dot",
-                sliderType: "min-range", value: 5.0, min: 0, max: 10, step: 0.1, startAngle: 90,
-                create: (e) => { scoreValueDisplay.textContent = e.value.toFixed(1); currentScore = parseFloat(e.value); },
-                drag: (e) => { scoreValueDisplay.textContent = e.value.toFixed(1); currentScore = parseFloat(e.value); },
-                change: (e) => { scoreValueDisplay.textContent = e.value.toFixed(1); currentScore = parseFloat(e.value); }
-            });
-        } else { throw new Error("jQuery ou roundSlider non chargé."); }
-    } catch (error) {
-        console.error("Erreur d'initialisation du slider.", error);
-        document.querySelector('.score-input-container').innerHTML = `<p style="color: var(--error-color);">Erreur: Le composant de score n'a pas pu charger.</p>`;
+    // =========================================================================
+    // --- GESTION DE L'AUTHENTIFICATION ---
+    // =========================================================================
+
+    function switchAuthMode() {
+        isLoginMode = !isLoginMode;
+        authTitle.textContent = isLoginMode ? 'Connexion' : 'Inscription';
+        authSubmitBtn.textContent = isLoginMode ? 'Se connecter' : 'Créer un compte';
+        switchAuthBtn.textContent = isLoginMode ? 'Pas de compte ? S\'inscrire' : 'Déjà un compte ? Se connecter';
+        errorMessage.style.display = 'none';
+        authForm.reset();
     }
 
-    // --- Gestion des Événements ---
-    sendScoreBtn.addEventListener('click', async () => { /* ... (code inchangé) ... */ });
-    showHistoryBtn.addEventListener('click', () => { switchView(historyView); fetchAndDisplayScores(); });
-    backToMainBtn.addEventListener('click', () => { switchView(mainView); });
-    toggleListBtn.addEventListener('click', () => { /* ... (code inchangé) ... */ });
-    saveEditBtn.addEventListener('click', () => { /* ... (code inchangé) ... */ });
-    cancelEditBtn.addEventListener('click', closeEditModal);
-    editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
-    chartFilterBtn.addEventListener('click', () => { chartFilterPanel.classList.toggle('visible'); });
-    document.addEventListener('click', (e) => { if (!chartFilterDropdown.contains(e.target)) chartFilterPanel.classList.remove('visible'); });
-    chartFilterList.addEventListener('click', (e) => {
-        const item = e.target.closest('.filter-item');
-        if (item && e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'label') {
-            const checkbox = item.querySelector('input[type="checkbox"]');
-            if (checkbox) {
-                checkbox.checked = !checkbox.checked;
-                chartFilterList.dispatchEvent(new Event('change'));
+    async function handleAuth(event) {
+        event.preventDefault();
+        const username = usernameInput.value;
+        const password = passwordInput.value;
+        const endpoint = isLoginMode ? 'api/login.php' : 'api/register.php';
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Connexion réussie
+                currentUser = { username };
+                initializeApp();
+            } else {
+                throw new Error(result.error || 'Une erreur est survenue.');
             }
+        } catch (error) {
+            errorMessage.textContent = error.message;
+            errorMessage.style.display = 'block';
         }
-    });
-    chartFilterList.addEventListener('change', () => {
-        const selectedDays = [...chartFilterList.querySelectorAll('input:checked')].map(input => input.value);
-        updateChart(selectedDays);
-        updateFilterButtonText();
-    });
-    selectAllBtn.addEventListener('click', () => {
-        chartFilterList.querySelectorAll('input').forEach(input => input.checked = true);
-        chartFilterList.dispatchEvent(new Event('change'));
-    });
-    deselectAllBtn.addEventListener('click', () => {
-        chartFilterList.querySelectorAll('input').forEach(input => input.checked = false);
-        chartFilterList.dispatchEvent(new Event('change'));
-    });
-    saveRenameBtn.addEventListener('click', () => {
-        const newName = renameDayInput.value.trim();
-        if (dayToRename && newName) {
-            renameDay(dayToRename, newName);
-            closeRenameModal();
+    }
+
+    async function logout() {
+        await fetch('api/logout.php');
+        currentUser = null;
+        switchView(authView);
+        document.body.classList.remove('app-loaded');
+    }
+
+    // Vérifie si une session existe au chargement de la page
+    async function checkSession() {
+        try {
+            // On essaie de récupérer les scores. Si ça marche, l'utilisateur est connecté.
+            const response = await fetch('api/get_score.php');
+            if (response.ok) {
+                const data = await response.json(); // On récupère les données pour ne pas les redemander
+                allScoresData = data;
+                initializeApp();
+            } else {
+                // L'utilisateur n'est pas connecté, on affiche l'écran de connexion
+                switchView(authView);
+                document.body.classList.add('app-loaded');
+            }
+        } catch (error) {
+            console.error("Erreur de session", error);
+            switchView(authView);
+            document.body.classList.add('app-loaded');
         }
-    });
-    cancelRenameBtn.addEventListener('click', closeRenameModal);
-    renameDayModal.addEventListener('click', (e) => { if (e.target === renameDayModal) closeRenameModal(); });
+    }
     
-    // --- Fonctions ---
-    function switchView(viewToShow) { /* ... (code inchangé) ... */ }
-    async function fetchAndDisplayScores() { /* ... (code inchangé) ... */ }
-    function displayScoresList(dataByDay) { /* ... (code inchangé) ... */ }
-    function populateChartFilters(dataByDay) { /* ... (code inchangé) ... */ }
-    function updateFilterButtonText() { /* ... (code inchangé) ... */ }
-    function updateChart(selectedDays) { /* ... (code inchangé) ... */ }
-    function buildChartDatasets(dataByDay, daysToInclude) { /* ... (code inchangé) ... */ }
+    // =========================================================================
+    // --- INITIALISATION DE L'APPLICATION ---
+    // =========================================================================
+
+    function initializeApp() {
+        welcomeMessage.textContent = `Bienvenue, ${usernameInput.value || 'utilisateur'} !`;
+        switchView(mainView);
+        document.body.classList.add('app-loaded');
+        initializeSlider();
+    }
+
+    function initializeSlider() {
+        try {
+            if ($ && $.fn.roundSlider && $("#score-slider").data("roundSlider") === undefined) {
+                $("#score-slider").roundSlider({
+                    radius: 120, width: 22, handleSize: "+8", handleShape: "dot",
+                    sliderType: "min-range", value: 5.0, min: 0, max: 10, step: 0.1, startAngle: 90,
+                    create: (e) => { scoreValueDisplay.textContent = e.value.toFixed(1); currentScore = parseFloat(e.value); },
+                    drag: (e) => { scoreValueDisplay.textContent = e.value.toFixed(1); currentScore = parseFloat(e.value); },
+                    change: (e) => { scoreValueDisplay.textContent = e.value.toFixed(1); currentScore = parseFloat(e.value); }
+                });
+            } else if (!($ && $.fn.roundSlider)) { 
+                throw new Error("jQuery ou roundSlider non chargé."); 
+            }
+        } catch (error) {
+            console.error("Erreur d'initialisation du slider.", error);
+            document.querySelector('.score-input-container').innerHTML = `<p style="color: var(--error-color);">Erreur: Le composant de score n'a pas pu charger.</p>`;
+        }
+    }
     
-    function displayScoresChart(initialDatasets) {
-        const chartCanvas = document.getElementById('scores-chart-container');
-        if (!chartCanvas) return;
-        const chartContext = chartCanvas.getContext('2d');
-        if (scoresChart) scoresChart.destroy();
+    // =========================================================================
+    // --- LOGIQUE PRINCIPALE DE L'APPLICATION ---
+    // =========================================================================
 
-        const textColor = getComputedStyle(document.body).getPropertyValue('--on-surface-color').trim();
-        const gridColor = 'rgba(255, 255, 255, 0.1)';
+    function switchView(viewToShow) {
+        [authView, mainView, historyView].forEach(v => v.classList.remove('active-view'));
+        viewToShow.classList.add('active-view');
+        // Réinitialise l'état de la liste en changeant de vue
+        listContainer.classList.remove('visible');
+        toggleListBtn.textContent = 'Afficher la liste';
+    }
 
-        // --- CORRECTION : Calcul des bornes dynamiques de l'axe X ---
-        let minTime = Infinity;
-        let maxTime = -Infinity;
+    async function sendScore() {
+        sendScoreBtn.disabled = true;
+        sendScoreBtn.textContent = 'Envoi...';
+        try {
+            const response = await fetch('api/save_score.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ score: currentScore })
+            });
+            const result = await response.json();
+            if (result.success) {
+                sendScoreBtn.style.backgroundColor = 'var(--success-color)';
+                sendScoreBtn.textContent = 'Envoyé !';
+            } else {
+                throw new Error(result.error || 'Erreur inconnue');
+            }
+        } catch (error) {
+            console.error('Erreur lors de l\'envoi du score:', error);
+            sendScoreBtn.style.backgroundColor = 'var(--error-color)';
+            sendScoreBtn.textContent = 'Échec';
+        }
+        setTimeout(() => {
+            sendScoreBtn.disabled = false;
+            sendScoreBtn.style.backgroundColor = '';
+            sendScoreBtn.textContent = 'Envoyer';
+        }, 1500);
+    }
 
-        if (initialDatasets.length > 0) {
-            initialDatasets.forEach(dataset => {
+    async function fetchAndDisplayScores() {
+        try {
+            const response = await fetch('api/get_score.php');
+            if (!response.ok) {
+                if (response.status === 401) logout(); // Si non autorisé, déconnexion
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            allScoresData = await response.json();
+            
+            displayScoresList(allScoresData);
+            populateChartFilters(allScoresData);
+            const allDays = Object.keys(allScoresData);
+            updateChart(allDays);
+            updateFilterButtonText(allDays.length);
+
+            toggleListBtn.style.display = allDays.length > 0 ? 'block' : 'none';
+            
+        } catch (error) {
+            console.error('Erreur lors de la récupération des scores:', error);
+            scoresListContainer.innerHTML = `<p style="color: var(--error-color);">Impossible de charger l'historique.</p>`;
+            toggleListBtn.style.display = 'none';
+        }
+    }
+
+    function displayScoresList(dataByDay) {
+        scoresListContainer.innerHTML = '';
+        const sortedDays = Object.keys(dataByDay).sort((a, b) => new Date(b) - new Date(a));
+        if (sortedDays.length === 0) {
+            scoresListContainer.innerHTML = `<p>Aucun score enregistré.</p>`;
+            return;
+        }
+        sortedDays.forEach(day => {
+            const dayData = dataByDay[day];
+            const dayGroupEl = document.createElement('div');
+            dayGroupEl.className = 'day-group';
+            dayGroupEl.dataset.day = day;
+
+            const title = document.createElement('h3');
+            const titleText = document.createElement('span');
+            titleText.textContent = dayData.customName || new Date(day).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            const renameBtn = document.createElement('button');
+            renameBtn.className = 'btn-icon rename-day-btn';
+            renameBtn.innerHTML = `<i class="material-icons">drive_file_rename_outline</i>`;
+            
+            title.appendChild(titleText);
+            title.appendChild(renameBtn);
+            dayGroupEl.appendChild(title);
+
+            const scoresForDay = dayData.scores;
+            if (Array.isArray(scoresForDay)) {
+                scoresForDay.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).forEach(score => {
+                    const scoreItemEl = document.createElement('div');
+                    scoreItemEl.className = 'score-item';
+                    scoreItemEl.dataset.id = score.id;
+                    scoreItemEl.innerHTML = `
+                        <span class="score-time">${new Date(score.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span class="score-value">${parseFloat(score.score_value).toFixed(1)}</span>
+                        <div class="score-actions">
+                            <button class="btn-icon edit-btn"><i class="material-icons">edit</i></button>
+                            <button class="btn-icon delete-btn"><i class="material-icons">delete</i></button>
+                        </div>`;
+                    dayGroupEl.appendChild(scoreItemEl);
+                });
+            }
+            scoresListContainer.appendChild(dayGroupEl);
+        });
+        addListActionListeners();
+    }
+
+    function populateChartFilters(dataByDay) {
+        chartFilterList.innerHTML = '';
+        const sortedDays = Object.keys(dataByDay).sort((a, b) => new Date(b) - new Date(a));
+        if (sortedDays.length <= 1) {
+            chartFilterDropdown.style.display = 'none';
+            return;
+        }
+        chartFilterDropdown.style.display = 'block';
+        sortedDays.forEach(day => {
+            const dayData = dataByDay[day];
+            const date = new Date(day);
+            const labelText = dayData.customName || date.toLocaleDateString('fr-FR', { weekday: 'short', month: 'short', day: 'numeric' });
+            
+            const item = document.createElement('div');
+            item.className = 'filter-item';
+            item.innerHTML = `
+                <input type="checkbox" id="filter-${day}" value="${day}" checked>
+                <span class="checkmark"></span>
+                <label for="filter-${day}">${labelText}</label>
+            `;
+            chartFilterList.appendChild(item);
+        });
+    }
+
+    function updateFilterButtonText(count) {
+        if (count === 0) {
+            chartFilterBtnText.textContent = "Aucun jour sélectionné";
+        } else if (count === 1) {
+            chartFilterBtnText.textContent = "1 jour sélectionné";
+        } else {
+            chartFilterBtnText.textContent = `${count} jours sélectionnés`;
+        }
+    }
+
+    function updateChart(selectedDays) {
+        const datasets = buildChartDatasets(allScoresData, selectedDays);
+        if (scoresChart) {
+            scoresChart.data.datasets = datasets;
+            // Recalculer les bornes de l'axe X
+            const { min, max } = calculateXAxisBounds(datasets);
+            scoresChart.options.scales.x.min = min;
+            scoresChart.options.scales.x.max = max;
+            scoresChart.update();
+        } else {
+            displayScoresChart(datasets);
+        }
+    }
+
+    function calculateXAxisBounds(datasets) {
+        let minTime = 10; // Heure de début par défaut (ex: 10h)
+        let maxTime = 34; // Heure de fin par défaut (ex: 10h J+1)
+        
+        if (datasets.length > 0) {
+            minTime = Infinity;
+            maxTime = -Infinity;
+            datasets.forEach(dataset => {
                 dataset.data.forEach(point => {
                     if (point.x < minTime) minTime = point.x;
                     if (point.x > maxTime) maxTime = point.x;
                 });
             });
-        } else {
-            // Valeurs par défaut si aucune donnée
-            minTime = 10;
-            maxTime = 34;
         }
         
-        // Ajoute un peu de marge pour la lisibilité
-        const axisMin = Math.floor(minTime) - 1;
-        const axisMax = Math.ceil(maxTime) + 1;
-        // --- FIN DE LA CORRECTION ---
+        // Ajoute une marge pour la lisibilité
+        return { min: Math.floor(minTime) - 1, max: Math.ceil(maxTime) + 1 };
+    }
 
+    function buildChartDatasets(dataByDay, daysToInclude) {
+        const sortedDays = Object.keys(dataByDay).filter(day => daysToInclude.includes(day)).sort((a, b) => new Date(a) - new Date(b));
+        return sortedDays.map((day, index) => {
+            const dayData = dataByDay[day];
+            const scores = dayData.scores;
+            if (!Array.isArray(scores)) return null;
+
+            const color = `hsl(${(index * 50) % 360}, 70%, 60%)`;
+            const getTimeValue = (dateString) => {
+                const date = new Date(dateString);
+                let timeValue = date.getHours() + date.getMinutes() / 60;
+                if (date.getHours() < 10) timeValue += 24; // Pour les scores après minuit
+                return timeValue;
+            };
+
+            return {
+                label: dayData.customName || new Date(day).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
+                data: scores.map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })),
+                borderColor: color,
+                backgroundColor: `${color}33`,
+                tension: 0.2,
+                pointRadius: 4,
+                pointHoverRadius: 7
+            };
+        }).filter(ds => ds !== null);
+    }
+    
+    function displayScoresChart(initialDatasets) {
+        const chartCanvas = document.getElementById('scores-chart-container');
+        if (!chartCanvas) return;
+        const chartContext = chartCanvas.getContext('2d');
+
+        if (scoresChart) scoresChart.destroy();
+
+        const textColor = getComputedStyle(document.body).getPropertyValue('--on-surface-color').trim();
+        const gridColor = 'rgba(255, 255, 255, 0.1)';
+
+        const { min: axisMin, max: axisMax } = calculateXAxisBounds(initialDatasets);
+        
         scoresChart = new Chart(chartContext, {
-            type: 'line', data: { datasets: initialDatasets },
+            type: 'line',
+            data: { datasets: initialDatasets },
             options: {
                 responsive: true,
-                maintainAspectRatio: false, 
+                maintainAspectRatio: false,
                 scales: {
                     x: {
                         type: 'linear',
-                        // On utilise les bornes dynamiques
                         min: axisMin,
                         max: axisMax,
                         ticks: {
@@ -149,16 +384,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         grid: { color: gridColor }
                     },
                     y: {
-                        beginAtZero: true, max: 10,
+                        beginAtZero: true,
+                        max: 10,
                         ticks: { color: textColor, stepSize: 1 },
                         grid: { color: gridColor }
                     }
                 },
                 plugins: {
-                    legend: {
-                        display: true,
-                        labels: { color: textColor }
-                    },
+                    legend: { display: true, labels: { color: textColor } },
                     tooltip: {
                         callbacks: {
                             title: (tooltipItems) => {
@@ -175,33 +408,140 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Fonctions de gestion de la liste (inchangées) ---
-    function addListActionListeners() { /* ... */ }
-    function handleEdit(scoreItem) { /* ... */ }
-    function closeEditModal() { /* ... */ }
-    async function handleDelete(scoreItem) { /* ... */ }
-    async function updateScore(id, newScore) { /* ... */ }
-    async function renameDay(date, newName) { /* ... */ }
+    // --- Fonctions d'action de la liste ---
+    function addListActionListeners() {
+        scoresListContainer.addEventListener('click', (e) => {
+            const editBtn = e.target.closest('.edit-btn');
+            if (editBtn) handleEdit(editBtn.closest('.score-item'));
+            const deleteBtn = e.target.closest('.delete-btn');
+            if (deleteBtn) handleDelete(deleteBtn.closest('.score-item'));
+            const renameBtn = e.target.closest('.rename-day-btn');
+            if (renameBtn) handleRename(renameBtn.closest('.day-group'));
+        });
+    }
 
-    // --- Code complet des fonctions inchangées ---
-    sendScoreBtn.addEventListener('click', async () => { sendScoreBtn.disabled = true; sendScoreBtn.textContent = 'Envoi...'; try { const response = await fetch('api/save_score.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ score: currentScore }) }); const result = await response.json(); if (result.success) { sendScoreBtn.style.backgroundColor = 'var(--success-color)'; sendScoreBtn.textContent = 'Envoyé !'; } else { throw new Error(result.error || 'Erreur inconnue'); } } catch (error) { console.error('Erreur lors de l\'envoi du score:', error); sendScoreBtn.style.backgroundColor = 'var(--error-color)'; sendScoreBtn.textContent = 'Échec'; } setTimeout(() => { sendScoreBtn.disabled = false; sendScoreBtn.style.backgroundColor = ''; sendScoreBtn.textContent = 'Envoyer'; }, 1500); });
+    function handleEdit(scoreItem) {
+        scoreIdToUpdate = scoreItem.dataset.id;
+        editScoreInput.value = scoreItem.querySelector('.score-value').textContent;
+        editModal.classList.add('visible');
+    }
+    function closeEditModal() {
+        editModal.classList.remove('visible');
+        scoreIdToUpdate = null;
+    }
+    
+    function handleRename(dayGroup) {
+        dayToRename = dayGroup.dataset.day;
+        const currentName = allScoresData[dayToRename]?.customName || '';
+        renameDayInput.value = currentName;
+        renameDayModal.classList.add('visible');
+        renameDayInput.focus();
+    }
+    function closeRenameModal() {
+        renameDayModal.classList.remove('visible');
+        dayToRename = null;
+    }
+    
+    async function handleDelete(scoreItem) {
+        const scoreId = scoreItem.dataset.id;
+        if (!confirm("Voulez-vous vraiment supprimer ce score ?")) return;
+        
+        try {
+            const res = await fetch('api/delete_score.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: scoreId })
+            });
+            const result = await res.json();
+            if (result.success) {
+                fetchAndDisplayScores();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error("Erreur de suppression:", error);
+            alert("La suppression a échoué.");
+        }
+    }
+
+    async function updateScore(id, newScore) {
+        try {
+            const res = await fetch('api/update_score.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, score: newScore })
+            });
+            const result = await res.json();
+            if (result.success) {
+                fetchAndDisplayScores();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error('Erreur de mise à jour:', error);
+            alert("La mise à jour a échoué.");
+        }
+    }
+    
+    async function renameDay(date, newName) {
+        try {
+            const res = await fetch('api/rename_day.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, name: newName })
+            });
+            const result = await res.json();
+            if (result.success) {
+                fetchAndDisplayScores();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error('Erreur lors du renommage:', error);
+            alert("Le renommage a échoué.");
+        }
+    }
+
+
+    // =========================================================================
+    // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
+    // =========================================================================
+
+    // Authentification
+    switchAuthBtn.addEventListener('click', switchAuthMode);
+    authForm.addEventListener('submit', handleAuth);
+    logoutBtn.addEventListener('click', logout);
+
+    // Navigation
     showHistoryBtn.addEventListener('click', () => { switchView(historyView); fetchAndDisplayScores(); });
     backToMainBtn.addEventListener('click', () => { switchView(mainView); });
+    
+    // Actions principales
+    sendScoreBtn.addEventListener('click', sendScore);
     toggleListBtn.addEventListener('click', () => { listContainer.classList.toggle('visible'); toggleListBtn.textContent = listContainer.classList.contains('visible') ? 'Masquer la liste' : 'Afficher la liste'; });
+    
+    // Modales
     saveEditBtn.addEventListener('click', () => { const newScore = parseFloat(editScoreInput.value); if (scoreIdToUpdate !== null && !isNaN(newScore) && newScore >= 0 && newScore <= 10) { updateScore(scoreIdToUpdate, newScore); closeEditModal(); } });
-    function switchView(viewToShow) { [mainView, historyView].forEach(v => v.classList.remove('active-view')); viewToShow.classList.add('active-view'); listContainer.classList.remove('visible'); toggleListBtn.textContent = 'Afficher la liste'; }
-    async function fetchAndDisplayScores() { try { const response = await fetch('api/get_scores.php'); if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); allScoresData = await response.json(); displayScoresList(allScoresData); populateChartFilters(allScoresData); updateChart(Object.keys(allScoresData)); updateFilterButtonText(); toggleListBtn.style.display = Object.keys(allScoresData).length > 0 ? 'block' : 'none'; } catch (error) { console.error('Erreur lors de la récupération des scores:', error); scoresListContainer.innerHTML = `<p style="color: var(--error-color);">Impossible de charger l'historique.</p>`; toggleListBtn.style.display = 'none'; } }
-    function displayScoresList(dataByDay) { scoresListContainer.innerHTML = ''; const sortedDays = Object.keys(dataByDay).sort((a, b) => new Date(b) - new Date(a)); if (sortedDays.length === 0) { scoresListContainer.innerHTML = `<p>Aucun score enregistré.</p>`; return; } sortedDays.forEach(day => { const dayData = dataByDay[day]; const dayGroupEl = document.createElement('div'); dayGroupEl.className = 'day-group'; dayGroupEl.dataset.day = day; const title = document.createElement('h3'); const titleText = document.createElement('span'); titleText.textContent = dayData.customName || new Date(day).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); const renameBtn = document.createElement('button'); renameBtn.className = 'btn-icon rename-day-btn'; renameBtn.innerHTML = `<i class="material-icons">drive_file_rename_outline</i>`; title.appendChild(titleText); title.appendChild(renameBtn); dayGroupEl.appendChild(title); const scoresForDay = dayData.scores; if (Array.isArray(scoresForDay)) { scoresForDay.forEach(score => { const scoreItemEl = document.createElement('div'); scoreItemEl.className = 'score-item'; scoreItemEl.dataset.id = score.id; scoreItemEl.innerHTML = `<span class="score-time">${new Date(score.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span><span class="score-value">${parseFloat(score.score_value).toFixed(1)}</span><div class="score-actions"><button class="btn-icon edit-btn"><i class="material-icons">edit</i></button><button class="btn-icon delete-btn"><i class="material-icons">delete</i></button></div>`; dayGroupEl.appendChild(scoreItemEl); }); } scoresListContainer.appendChild(dayGroupEl); }); addListActionListeners(); }
-    function populateChartFilters(dataByDay) { chartFilterList.innerHTML = ''; const sortedDays = Object.keys(dataByDay).sort((a, b) => new Date(b) - new Date(a)); if (sortedDays.length <= 1) { chartFilterDropdown.style.display = 'none'; return; } chartFilterDropdown.style.display = 'block'; sortedDays.forEach(day => { const dayData = dataByDay[day]; const date = new Date(day); const labelText = dayData.customName || date.toLocaleDateString('fr-FR', { weekday: 'short', month: 'short', day: 'numeric' }); const item = document.createElement('div'); item.className = 'filter-item'; const input = document.createElement('input'); input.type = 'checkbox'; input.id = `filter-${day}`; input.value = day; input.checked = true; const checkmark = document.createElement('span'); checkmark.className = 'checkmark'; const label = document.createElement('label'); label.htmlFor = `filter-${day}`; label.textContent = labelText; item.appendChild(input); item.appendChild(checkmark); item.appendChild(label); chartFilterList.appendChild(item); }); }
-    function updateFilterButtonText() { const count = chartFilterList.querySelectorAll('input:checked').length; if (count === 0) { chartFilterBtnText.textContent = "Aucun jour sélectionné"; } else if (count === 1) { chartFilterBtnText.textContent = "1 jour sélectionné"; } else { chartFilterBtnText.textContent = `${count} jours sélectionnés`; } }
-    function updateChart(selectedDays) { const datasets = buildChartDatasets(allScoresData, selectedDays); if (scoresChart) { scoresChart.destroy(); displayScoresChart(datasets); } else { displayScoresChart(datasets); } }
-    function buildChartDatasets(dataByDay, daysToInclude) { const sortedDays = Object.keys(dataByDay).filter(day => daysToInclude.includes(day)).sort((a, b) => new Date(a) - new Date(b)); return sortedDays.map((day, index) => { const dayData = dataByDay[day]; const scores = dayData.scores; if (!Array.isArray(scores)) return null; const color = `hsl(${(index * 50) % 360}, 70%, 60%)`; const getTimeValue = (dateString) => { const date = new Date(dateString); let timeValue = date.getHours() + date.getMinutes() / 60; if (date.getHours() < 10) timeValue += 24; return timeValue; }; return { label: dayData.customName || new Date(day).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }), data: scores.map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })), borderColor: color, backgroundColor: `${color}33`, tension: 0.2, pointRadius: 4, pointHoverRadius: 7 }; }).filter(ds => ds !== null); }
-    function addListActionListeners() { scoresListContainer.addEventListener('click', (e) => { const editBtn = e.target.closest('.edit-btn'); if (editBtn) handleEdit(editBtn.closest('.score-item')); const deleteBtn = e.target.closest('.delete-btn'); if (deleteBtn) handleDelete(deleteBtn.closest('.score-item')); const renameBtn = e.target.closest('.rename-day-btn'); if (renameBtn) handleRename(renameBtn.closest('.day-group')); }); }
-    function handleEdit(scoreItem) { scoreIdToUpdate = scoreItem.dataset.id; editScoreInput.value = scoreItem.querySelector('.score-value').textContent; editModal.classList.add('visible'); }
-    function closeEditModal() { editModal.classList.remove('visible'); scoreIdToUpdate = null; }
-    function handleRename(dayGroup) { dayToRename = dayGroup.dataset.day; const currentName = allScoresData[dayToRename]?.customName || ''; renameDayInput.value = currentName; renameDayModal.classList.add('visible'); renameDayInput.focus(); }
-    function closeRenameModal() { renameDayModal.classList.remove('visible'); dayToRename = null; }
-    async function handleDelete(scoreItem) { const scoreId = scoreItem.dataset.id; scoreItem.style.opacity = '0'; setTimeout(async () => { try { const res = await fetch('api/delete_score.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: scoreId }) }); const result = await res.json(); if (result.success) { fetchAndDisplayScores(); } else { throw new Error(result.error); } } catch (error) { console.error("Erreur de suppression:", error); scoreItem.style.opacity = '1'; } }, 300); }
-    async function updateScore(id, newScore) { try { const res = await fetch('api/update_score.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, score: newScore }) }); const result = await res.json(); if (result.success) fetchAndDisplayScores(); } catch (error) { console.error('Erreur de mise à jour:', error); } }
-    async function renameDay(date, newName) { try { const res = await fetch('api/rename_day.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, name: newName }) }); const result = await res.json(); if (result.success) { fetchAndDisplayScores(); } } catch (error) { console.error('Erreur lors du renommage:', error); } }
+    cancelEditBtn.addEventListener('click', closeEditModal);
+    editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
+    
+    saveRenameBtn.addEventListener('click', () => { const newName = renameDayInput.value.trim(); if (dayToRename) { renameDay(dayToRename, newName); closeRenameModal(); } });
+    cancelRenameBtn.addEventListener('click', closeRenameModal);
+    renameDayModal.addEventListener('click', (e) => { if (e.target === renameDayModal) closeRenameModal(); });
+
+    // Filtres du graphique
+    chartFilterBtn.addEventListener('click', () => { chartFilterPanel.classList.toggle('visible'); });
+    document.addEventListener('click', (e) => { if (!chartFilterDropdown.contains(e.target)) chartFilterPanel.classList.remove('visible'); });
+    
+    chartFilterList.addEventListener('change', () => {
+        const selectedDays = [...chartFilterList.querySelectorAll('input:checked')].map(input => input.value);
+        updateChart(selectedDays);
+        updateFilterButtonText(selectedDays.length);
+    });
+    selectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = true); chartFilterList.dispatchEvent(new Event('change')); });
+    deselectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = false); chartFilterList.dispatchEvent(new Event('change')); });
+
+
+    // --- DÉMARRAGE ---
+    checkSession();
 });

@@ -1,6 +1,15 @@
 <?php
 // Définit le type de contenu de la réponse en JSON pour être cohérent
 header('Content-Type: application/json');
+session_start(); // On démarre la session
+
+// SÉCURITÉ : Vérifier si l'utilisateur est connecté
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401); // Unauthorized
+    echo json_encode(['success' => false, 'error' => 'Utilisateur non connecté.']);
+    exit();
+}
+$user_id = $_SESSION['user_id']; // On récupère l'ID de l'utilisateur
 
 // 1. Vérifier que la méthode de la requête est bien POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -49,15 +58,18 @@ try {
     $db = new PDO('sqlite:' . $db_path);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Crée la table `scores` si elle n'existe pas (sécurité supplémentaire)
+    // Crée la table `scores` si elle n'existe pas (avec le user_id)
     $db->exec("CREATE TABLE IF NOT EXISTS scores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
         score_value REAL NOT NULL,
-        created_at DATETIME NOT NULL
+        created_at DATETIME NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id)
     )");
 
-    $stmt = $db->prepare("INSERT INTO scores (score_value, created_at) VALUES (:score, :created_at)");
+    $stmt = $db->prepare("INSERT INTO scores (user_id, score_value, created_at) VALUES (:user_id, :score, :created_at)");
     $stmt->execute([
+        ':user_id' => $user_id, // On ajoute l'ID de l'utilisateur
         ':score' => $score,
         ':created_at' => date('Y-m-d H:i:s')
     ]);

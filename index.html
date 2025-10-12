@@ -21,7 +21,24 @@
 </head>
 <body>
     <div class="app-container">
-        <div id="main-view" class="view active-view">
+        <div id="auth-view" class="view">
+            <div class="auth-container">
+                <h2 id="auth-title">Connexion</h2>
+                <div id="error-message" class="error-message"></div>
+                <form id="auth-form">
+                    <input type="text" id="username" class="modal-input" placeholder="Nom d'utilisateur" required>
+                    <input type="password" id="password" class="modal-input" placeholder="Mot de passe" required>
+                    <button type="submit" id="auth-submit-btn" class="btn btn-primary">Se connecter</button>
+                </form>
+                <button id="switch-auth-btn" class="btn-link">Pas de compte ? S'inscrire</button>
+            </div>
+        </div>
+
+        <div id="main-view" class="view">
+            <div class="main-header">
+                <span id="welcome-message"></span>
+                <button id="logout-btn" class="btn-icon" title="Se déconnecter"><i class="material-icons">logout</i></button>
+            </div>
             <div class="main-content">
                 <h1>Niveau d'alcoolémie sur 10 ?</h1>
                 <div class="score-input-container">
@@ -36,7 +53,10 @@
         </div>
 
         <div id="history-view" class="view">
-            <h2>Historique des scores</h2>
+            <div class="history-header">
+                <h2>Historique des scores</h2>
+                <button id="back-to-main-btn" class="btn-icon" title="Retour"><i class="material-icons">arrow_back</i></button>
+            </div>
             <div class="history-content">
                 <div id="chart-filter-dropdown" class="chart-filter-dropdown">
                     <button id="chart-filter-btn" class="btn btn-secondary btn-dropdown">
@@ -59,11 +79,9 @@
                     <div id="scores-list"></div>
                 </div>
             </div>
-            <button id="back-to-main-btn" class="btn btn-secondary">Retour</button>
         </div>
     </div>
 
-    <!-- Modale pour éditer un score -->
     <div id="edit-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Modifier le score</h3>
@@ -75,7 +93,6 @@
         </div>
     </div>
 
-    <!-- NOUVEAU : Modale pour renommer une journée -->
     <div id="rename-day-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Renommer la journée</h3>
