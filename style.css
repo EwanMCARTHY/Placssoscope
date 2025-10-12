@@ -15,7 +15,7 @@
 }
 
 /* ==========================================================================
-   STYLES DE BASE ET MISE EN PAGE (AVEC CORRECTION DÉFINITIVE)
+   STYLES DE BASE ET MISE EN PAGE
    ========================================================================== */
 
 *, *::before, *::after {
@@ -27,11 +27,9 @@ body {
     margin: 0;
     background-color: var(--background-color);
     color: var(--on-background-color);
-    /* On garde le verrouillage du scroll, c'est crucial pour le mobile */
     overflow: hidden;
     height: 100vh;
     -webkit-tap-highlight-color: transparent;
-    /* On retire la logique de centrage d'ici */
 }
 
 .app-container {
@@ -43,7 +41,6 @@ body {
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    /* CORRECTION : On ajoute le centrage horizontal ici */
     margin: 0 auto;
 }
 
@@ -134,6 +131,14 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
     cursor: pointer; padding: 8px; border-radius: 50%;
 }
 .btn-icon:hover { background-color: rgba(255, 255, 255, 0.1); color: var(--primary-color); }
+.btn-danger {
+    width: 100%;
+    background-color: var(--error-color);
+    color: white;
+}
+.btn-danger:hover {
+    background-color: #b04f5f;
+}
 
 /* ==========================================================================
    VUE HISTORIQUE
@@ -225,65 +230,6 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 ::-webkit-scrollbar-thumb:hover { background: #777; }
 
 /* ==========================================================================
-   STYLES POUR LA PAGE PROFIL
-   ========================================================================== */
-.header-actions {
-    display: flex;
-    gap: 8px;
-}
-
-#profile-view {
-    justify-content: flex-start;
-}
-
-.profile-content {
-    text-align: left;
-    margin-top: 24px;
-}
-
-.profile-section {
-    background-color: var(--surface-color);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 24px;
-}
-
-.profile-section h3 {
-    margin-top: 0;
-    color: var(--primary-color);
-}
-
-.profile-section p {
-    font-size: 0.9rem;
-    color: var(--on-surface-color);
-    margin-bottom: 16px;
-}
-
-#change-password-form {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-#change-password-form .modal-input {
-    margin-bottom: 0;
-}
-
-#change-password-form .btn {
-    width: 100%;
-    margin-top: 8px;
-}
-
-.btn-danger {
-    width: 100%;
-    background-color: var(--error-color);
-    color: white;
-}
-.btn-danger:hover {
-    background-color: #b04f5f;
-}
-
-/* ==========================================================================
    BOÎTE DE DIALOGUE (MODALE)
    ========================================================================== */
 .modal-overlay {
@@ -309,7 +255,39 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 .modal-actions { display: flex; justify-content: space-between; gap: 16px; }
 .modal-actions .btn { width: 100%; margin: 0; }
 
-/* Style pour la case "Se souvenir de moi" */
+/* ==========================================================================
+   STYLES POUR L'AUTHENTIFICATION
+   ========================================================================== */
+#auth-view {
+    justify-content: center;
+}
+.auth-container {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+}
+#auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 24px 0;
+}
+#auth-form .modal-input {
+    margin-bottom: 0;
+}
+#auth-form .btn {
+    width: 100%;
+}
+.error-message {
+    color: var(--error-color);
+    background-color: rgba(207, 102, 121, 0.1);
+    border: 1px solid var(--error-color);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    display: none;
+}
 .form-extra-options {
     display: flex;
     justify-content: center;
@@ -318,14 +296,166 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
     font-size: 0.9rem;
     color: var(--on-surface-color);
 }
-
 .form-extra-options label {
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
 }
-
 .form-extra-options input[type="checkbox"] {
     cursor: pointer;
+}
+
+/* ==========================================================================
+   AJUSTEMENTS DIVERS (HEADERS, ETC.)
+   ========================================================================== */
+.main-header, .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.history-header h2 {
+    margin-bottom: 0;
+}
+#welcome-message {
+    font-size: 1rem;
+    color: var(--on-surface-color);
+}
+.header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.header-actions .profile-picture-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    cursor: pointer;
+    border: 1px solid var(--surface-color);
+}
+.header-actions #profile-btn {
+    display: none;
+}
+
+/* ==========================================================================
+   STYLES POUR LA PAGE PROFIL
+   ========================================================================== */
+#profile-view {
+    justify-content: flex-start;
+}
+.profile-content {
+    text-align: left;
+    margin-top: 24px;
+}
+.profile-section {
+    background-color: var(--surface-color);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+.profile-section h3 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+.profile-section p {
+    font-size: 0.9rem;
+    color: var(--on-surface-color);
+    margin-bottom: 16px;
+}
+#change-password-form, #change-username-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+#change-password-form .modal-input, #change-username-form .modal-input {
+    margin-bottom: 0;
+}
+#change-password-form .btn, #change-username-form .btn {
+    width: 100%;
+    margin-top: 8px;
+}
+.profile-picture-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+.profile-picture {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--surface-color);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+#upload-picture-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+#upload-picture-form .btn {
+    width: auto;
+    padding: 12px 24px;
+}
+
+/* ==========================================================================
+   STYLES POUR L'ACCORDÉON DU PROFIL (CORRIGÉ)
+   ========================================================================== */
+.accordion {
+    margin-bottom: 24px;
+}
+
+.accordion-header {
+    background-color: var(--surface-color);
+    color: var(--on-background-color);
+    cursor: pointer;
+    padding: 18px 24px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 16px;
+}
+
+.accordion-header:hover {
+    background-color: #333;
+}
+
+.accordion-header.active {
+    background-color: #333;
+    /* Arrondit seulement les coins du haut quand il est actif */
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.accordion-header .material-icons {
+    transition: transform 0.3s ease;
+}
+
+.accordion-header.active .material-icons {
+    transform: rotate(180deg);
+}
+
+.accordion-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    /* Ajout d'une marge en bas pour séparer les éléments de l'accordéon */
+    margin-bottom: 8px;
+}
+
+.accordion-panel .profile-section {
+    margin-bottom: 0;
+    /* S'assure qu'il n'y a pas de coins arrondis en haut */
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }

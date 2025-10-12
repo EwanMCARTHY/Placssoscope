@@ -93,24 +93,47 @@
                 <button id="back-to-main-from-profile-btn" class="btn-icon" title="Retour"><i class="material-icons">arrow_back</i></button>
             </div>
             <div class="profile-content">
-                <div class="profile-section">
-                    <h3>Changer de nom d'utilisateur</h3>
-                    <form id="change-username-form">
-                        <input type="text" id="new-username" class="modal-input" placeholder="Nouveau nom d'utilisateur" required autocomplete="username">
-                        <button type="submit" class="btn btn-secondary">Mettre à jour</button>
+
+                <div class="profile-section profile-picture-section">
+                    <img id="profile-pic-display" src="assets/default-avatar.png" alt="Photo de profil" class="profile-picture">
+                    <form id="upload-picture-form">
+                        <label for="picture-input" class="btn btn-secondary">Changer de photo</label>
+                        <input type="file" id="picture-input" name="profile_picture" accept="image/png, image/jpeg" style="display: none;">
+                        <button type="submit" id="upload-submit-btn" class="btn btn-primary" style="display: none;">Enregistrer</button>
                     </form>
                 </div>
-                <div class="profile-section">
-                    <h3>Changer le mot de passe</h3>
-                    <form id="change-password-form">
-                        <input type="text" name="username" autocomplete="username" value="" style="display: none;">
-                        
-                        <input type="password" id="current-password" class="modal-input" placeholder="Mot de passe actuel" required autocomplete="current-password">
-                        <input type="password" id="new-password" class="modal-input" placeholder="Nouveau mot de passe" required autocomplete="new-password">
-                        <input type="password" id="confirm-password" class="modal-input" placeholder="Confirmer le nouveau mot de passe" required autocomplete="new-password">
-                        <button type="submit" class="btn btn-secondary">Mettre à jour</button>
-                    </form>
+
+                <div class="accordion">
+                    <button class="accordion-header">
+                        <span>Changer de nom d'utilisateur</span>
+                        <i class="material-icons">expand_more</i>
+                    </button>
+                    <div class="accordion-panel">
+                        <div class="profile-section">
+                            <form id="change-username-form">
+                                <input type="text" id="new-username" class="modal-input" placeholder="Nouveau nom d'utilisateur" required autocomplete="username">
+                                <button type="submit" class="btn btn-secondary">Mettre à jour</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <button class="accordion-header">
+                        <span>Changer le mot de passe</span>
+                        <i class="material-icons">expand_more</i>
+                    </button>
+                    <div class="accordion-panel">
+                        <div class="profile-section">
+                            <form id="change-password-form">
+                                <input type="text" name="username" autocomplete="username" value="" style="display: none;">
+                                <input type="password" id="current-password" class="modal-input" placeholder="Mot de passe actuel" required autocomplete="current-password">
+                                <input type="password" id="new-password" class="modal-input" placeholder="Nouveau mot de passe" required autocomplete="new-password">
+                                <input type="password" id="confirm-password" class="modal-input" placeholder="Confirmer le nouveau mot de passe" required autocomplete="new-password">
+                                <button type="submit" class="btn btn-secondary">Mettre à jour</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="profile-section">
                     <h3>Zone de danger</h3>
                     <p>Cette action est irréversible. Toutes vos données seront effacées.</p>

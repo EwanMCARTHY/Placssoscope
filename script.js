@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authView = document.getElementById('auth-view');
     const mainView = document.getElementById('main-view');
     const historyView = document.getElementById('history-view');
-    const profileView = document.getElementById('profile-view'); // NOUVEAU
+    const profileView = document.getElementById('profile-view');
 
     // --- Éléments d'authentification ---
     const authForm = document.getElementById('auth-form');
@@ -34,12 +34,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectAllBtn = document.getElementById('select-all-btn');
     const deselectAllBtn = document.getElementById('deselect-all-btn');
 
-    // --- Éléments de la page de profil (NOUVEAU) ---
+    // --- Éléments de la page de profil ---
     const profileBtn = document.getElementById('profile-btn');
     const backToMainFromProfileBtn = document.getElementById('back-to-main-from-profile-btn');
+    const changeUsernameForm = document.getElementById('change-username-form');
     const changePasswordForm = document.getElementById('change-password-form');
     const deleteAccountBtn = document.getElementById('delete-account-btn');
-    const changeUsernameForm = document.getElementById('change-username-form');
+    const uploadPictureForm = document.getElementById('upload-picture-form');
+    const pictureInput = document.getElementById('picture-input');
+    const uploadSubmitBtn = document.getElementById('upload-submit-btn');
+    const profilePicDisplay = document.getElementById('profile-pic-display');
 
     // --- Éléments des modales ---
     const editModal = document.getElementById('edit-modal');
@@ -71,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         switchAuthBtn.textContent = isLoginMode ? 'Pas de compte ? S\'inscrire' : 'Déjà un compte ? Se connecter';
         errorMessage.style.display = 'none';
         authForm.reset();
+        document.getElementById('remember-me').checked = true; // Garde la case cochée
     }
 
     async function handleAuth(event) {
@@ -88,8 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const result = await response.json();
             if (response.ok && result.success) {
-                currentUser = { username };
-                initializeApp();
+                await checkSession();
             } else {
                 throw new Error(result.error || 'Une erreur est survenue.');
             }
@@ -103,12 +107,15 @@ document.addEventListener('DOMContentLoaded', () => {
         await fetch('api/logout.php');
         currentUser = null;
         authForm.reset();
+        document.getElementById('remember-me').checked = true;
         switchView(authView);
         document.body.classList.remove('app-loaded');
         if (scoresChart) {
             scoresChart.destroy();
             scoresChart = null;
         }
+        const headerIcon = document.querySelector('.header-actions .profile-picture-icon');
+        if (headerIcon) headerIcon.remove();
     }
 
     async function checkSession() {
@@ -117,7 +124,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
-                    currentUser = { username: result.username };
+                    currentUser = {
+                        username: result.username,
+                        profile_picture: result.profile_picture
+                    };
                     initializeApp();
                 } else {
                     throw new Error("Session invalide.");
@@ -140,6 +150,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeApp() {
         if (currentUser) {
             welcomeMessage.textContent = `Bienvenue, ${currentUser.username} !`;
+            const picUrl = currentUser.profile_picture ? currentUser.profile_picture : 'assets/default-avatar.png';
+            profilePicDisplay.src = picUrl;
+
+            let headerIcon = document.querySelector('.header-actions .profile-picture-icon');
+            if (!headerIcon) {
+                headerIcon = document.createElement('img');
+                headerIcon.className = 'profile-picture-icon';
+                headerIcon.title = 'Mon Profil';
+                headerIcon.addEventListener('click', () => switchView(profileView));
+                document.querySelector('.header-actions').prepend(headerIcon);
+            }
+            headerIcon.src = picUrl;
         }
         switchView(mainView);
         document.body.classList.add('app-loaded');
@@ -173,8 +195,113 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // =========================================================================
-    // --- LOGIQUE PRINCIPALE (SCORES, HISTORIQUE, GRAPHIQUES) ---
+    // --- GESTION DES ACTIONS (PROFIL, SCORES, ETC.) ---
     // =========================================================================
+
+    async function handlePictureUpload(event) {
+        event.preventDefault();
+        const formData = new FormData();
+        formData.append('profile_picture', pictureInput.files[0]);
+
+        try {
+            const response = await fetch('api/upload_picture.php', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert('Photo de profil mise à jour !');
+                const newPicUrl = result.filePath;
+                currentUser.profile_picture = newPicUrl;
+                profilePicDisplay.src = newPicUrl;
+                document.querySelector('.header-actions .profile-picture-icon').src = newPicUrl;
+                uploadSubmitBtn.style.display = 'none';
+                uploadPictureForm.reset();
+            } else {
+                throw new Error(result.error || "Une erreur s'est produite.");
+            }
+        } catch (error) {
+            alert(`Erreur : ${error.message}`);
+        }
+    }
+
+    async function handleChangeUsername(event) {
+        event.preventDefault();
+        const newUsername = document.getElementById('new-username').value;
+        if (!newUsername) {
+            alert("Le nom d'utilisateur ne peut pas être vide.");
+            return;
+        }
+
+        try {
+            const response = await fetch('api/change_username.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ newUsername })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert('Nom d\'utilisateur changé avec succès !');
+                currentUser.username = result.newUsername;
+                welcomeMessage.textContent = `Bienvenue, ${currentUser.username} !`;
+                changeUsernameForm.reset();
+            } else {
+                throw new Error(result.error || "Une erreur s'est produite.");
+            }
+        } catch (error) {
+            alert(`Erreur : ${error.message}`);
+        }
+    }
+
+    async function handleChangePassword(event) {
+        event.preventDefault();
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+
+        if (newPassword !== confirmPassword) {
+            alert("Les nouveaux mots de passe ne correspondent pas.");
+            return;
+        }
+
+        try {
+            const response = await fetch('api/change_password.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert('Mot de passe changé avec succès !');
+                changePasswordForm.reset();
+            } else {
+                throw new Error(result.error || "Une erreur s'est produite.");
+            }
+        } catch (error) {
+            alert(`Erreur : ${error.message}`);
+        }
+    }
+
+    async function handleDeleteAccount() {
+        const confirmation = prompt("Pour confirmer la suppression DÉFINITIVE de votre compte et de toutes vos données, veuillez taper 'SUPPRIMER' dans le champ ci-dessous.");
+        if (confirmation !== 'SUPPRIMER') {
+            alert('Suppression annulée.');
+            return;
+        }
+
+        try {
+            const response = await fetch('api/delete_account.php', { method: 'POST' });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert('Votre compte a été supprimé.');
+                logout();
+            } else {
+                throw new Error(result.error || "Une erreur s'est produite.");
+            }
+        } catch (error) {
+            alert(`Erreur : ${error.message}`);
+        }
+    }
 
     async function sendScore() {
         sendScoreBtn.disabled = true;
@@ -267,9 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         addListActionListeners();
     }
-
-    // --- Fonctions utilitaires (graphiques, modales, etc.) ---
-    // (Cette section contient les fonctions qui n'ont pas changé)
 
     function populateChartFilters(dataByDay) {
         chartFilterList.innerHTML = '';
@@ -369,7 +493,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     legend: { display: true, labels: { color: textColor } },
                     tooltip: {
                         callbacks: {
-                            title: (items) => `Heure: ${new Date(items[0].parsed.x * 3600 * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+                            title: (tooltipItems) => {
+                                const value = tooltipItems[0].parsed.x;
+                                const hour = Math.floor(value) % 24;
+                                const minutes = Math.round((value % 1) * 60);
+                                return `Heure: ${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                            },
                             label: (c) => `Score: ${c.parsed.y.toFixed(1)}`
                         }
                     }
@@ -378,91 +507,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // =========================================================================
-    // --- GESTION DES ACTIONS (PROFIL, SCORES) ---
-    // =========================================================================
-    
-    // --- NOUVEAU : Fonctions de la page de profil ---
-    async function handleChangePassword(event) {
-        event.preventDefault();
-        const currentPassword = document.getElementById('current-password').value;
-        const newPassword = document.getElementById('new-password').value;
-        const confirmPassword = document.getElementById('confirm-password').value;
-
-        if (newPassword !== confirmPassword) {
-            alert("Les nouveaux mots de passe ne correspondent pas.");
-            return;
-        }
-
-        try {
-            const response = await fetch('api/change_password.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
-            });
-            const result = await response.json();
-            if (response.ok && result.success) {
-                alert('Mot de passe changé avec succès !');
-                changePasswordForm.reset();
-            } else {
-                throw new Error(result.error || "Une erreur s'est produite.");
-            }
-        } catch (error) {
-            alert(`Erreur : ${error.message}`);
-        }
-    }
-
-    async function handleDeleteAccount() {
-        const confirmation = prompt("Pour confirmer la suppression DÉFINITIVE de votre compte et de toutes vos données, veuillez taper 'SUPPRIMER' dans le champ ci-dessous.");
-        if (confirmation !== 'SUPPRIMER') {
-            alert('Suppression annulée.');
-            return;
-        }
-
-        try {
-            const response = await fetch('api/delete_account.php', { method: 'POST' });
-            const result = await response.json();
-            if (response.ok && result.success) {
-                alert('Votre compte a été supprimé.');
-                logout(); // Déconnecte et ramène à l'écran de connexion
-            } else {
-                throw new Error(result.error || "Une erreur s'est produite.");
-            }
-        } catch (error) {
-            alert(`Erreur : ${error.message}`);
-        }
-    }
-
-    async function handleChangeUsername(event) {
-        event.preventDefault();
-        const newUsername = document.getElementById('new-username').value;
-        if (!newUsername) {
-            alert("Le nom d'utilisateur ne peut pas être vide.");
-            return;
-        }
-
-        try {
-            const response = await fetch('api/change_username.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ newUsername })
-            });
-            const result = await response.json();
-            if (response.ok && result.success) {
-                alert('Nom d\'utilisateur changé avec succès !');
-                // Mettre à jour l'affichage
-                currentUser.username = result.newUsername;
-                welcomeMessage.textContent = `Bienvenue, ${currentUser.username} !`;
-                changeUsernameForm.reset();
-            } else {
-                throw new Error(result.error || "Une erreur s'est produite.");
-            }
-        } catch (error) {
-            alert(`Erreur : ${error.message}`);
-        }
-    }
-
-    // --- Fonctions de gestion de la liste des scores ---
     function addListActionListeners() {
         scoresListContainer.addEventListener('click', (e) => {
             const editBtn = e.target.closest('.edit-btn'); if (editBtn) handleEdit(editBtn.closest('.score-item'));
@@ -508,9 +552,18 @@ document.addEventListener('DOMContentLoaded', () => {
     logoutBtn.addEventListener('click', logout);
     profileBtn.addEventListener('click', () => switchView(profileView));
     backToMainFromProfileBtn.addEventListener('click', () => switchView(mainView));
+    changeUsernameForm.addEventListener('submit', handleChangeUsername);
     changePasswordForm.addEventListener('submit', handleChangePassword);
     deleteAccountBtn.addEventListener('click', handleDeleteAccount);
-    changeUsernameForm.addEventListener('submit', handleChangeUsername);
+    uploadPictureForm.addEventListener('submit', handlePictureUpload);
+    pictureInput.addEventListener('change', () => {
+        if (pictureInput.files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = (e) => { profilePicDisplay.src = e.target.result; };
+            reader.readAsDataURL(pictureInput.files[0]);
+            uploadSubmitBtn.style.display = 'block';
+        }
+    });
 
     // Navigation principale
     showHistoryBtn.addEventListener('click', () => { switchView(historyView); fetchAndDisplayScores(); });
@@ -538,6 +591,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     selectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = true); chartFilterList.dispatchEvent(new Event('change')); });
     deselectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = false); chartFilterList.dispatchEvent(new Event('change')); });
+
+    // --- GESTION DE L'ACCORDÉON DANS LE PROFIL ---
+    const accordionHeaders = document.querySelectorAll('.accordion-header');
+
+    accordionHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            // Ferme les autres accordéons ouverts
+            accordionHeaders.forEach(otherHeader => {
+                if (otherHeader !== header && otherHeader.classList.contains('active')) {
+                    otherHeader.classList.remove('active');
+                    otherHeader.nextElementSibling.style.maxHeight = null;
+                }
+            });
+
+            // Ouvre ou ferme l'accordéon cliqué
+            header.classList.toggle('active');
+            const panel = header.nextElementSibling;
+            if (panel.style.maxHeight) {
+                panel.style.maxHeight = null; // Ferme
+            } else {
+                panel.style.maxHeight = panel.scrollHeight + "px"; // Ouvre
+            }
+        });
+    });
 
     // --- DÉMARRAGE DE L'APPLICATION ---
     checkSession();
