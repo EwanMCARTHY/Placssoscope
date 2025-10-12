@@ -2,7 +2,6 @@
 header('Content-Type: application/json');
 session_start();
 
-// SÉCURITÉ : Vérifier si l'utilisateur est connecté
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Utilisateur non connecté.']);
@@ -12,34 +11,30 @@ $user_id = $_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'error' => 'Méthode de requête non autorisée.']);
+    echo json_encode(['success' => false, 'error' => 'Méthode non autorisée.']);
     exit();
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
 
-if (!isset($data['id']) || !is_numeric($data['id']) || !isset($data['score']) || !is_numeric($data['score'])) {
+if (!isset($data['id']) || !is_numeric($data['id']) || !isset($data['score']) || !is_numeric($data['score']) || $data['score'] < 0 || $data['score'] > 10) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'ID ou score manquant ou invalide.']);
-    exit();
-}
-
-$score = $data['score'];
-if ($score < 0 || $score > 10) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Le score doit être compris entre 0 et 10.']);
+    echo json_encode(['success' => false, 'error' => 'ID ou score invalide.']);
     exit();
 }
 
 try {
-    $db_path = '../database/scores.db';
-    $db = new PDO('sqlite:' . $db_path);
+    $db_host = 'localhost';
+    $db_name = 'u551125034_placssographe';
+    $db_user = 'u551125034_contact'; // Votre nom d'utilisateur corrigé
+    $db_pass = 'Ewan2004+'; // Votre mot de passe
+
+    $db = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_user, $db_pass);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // La requête UPDATE inclut maintenant une vérification de user_id
     $stmt = $db->prepare("UPDATE scores SET score_value = :score WHERE id = :id AND user_id = :user_id");
     $stmt->execute([
-        ':score' => $score,
+        ':score' => $data['score'],
         ':id' => $data['id'],
         ':user_id' => $user_id
     ]);
@@ -48,12 +43,11 @@ try {
         echo json_encode(['success' => true]);
     } else {
         http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'Aucun score trouvé avec cet ID pour cet utilisateur.']);
+        echo json_encode(['success' => false, 'error' => 'Score non trouvé pour cet utilisateur.']);
     }
 
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Erreur de base de données: ' . $e->getMessage()]);
-    exit();
 }
 ?>

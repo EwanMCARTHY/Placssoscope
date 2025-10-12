@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- Variables d'état ---
     let isLoginMode = true;
-    let currentUser = null;
+    let currentUser = null; // Contiendra { username: '...' }
     let currentScore = 5.0;
     let scoresChart;
     let scoreIdToUpdate = null;
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok && result.success) {
                 // Connexion réussie
-                currentUser = { username };
+                currentUser = { username }; // On stocke le nom d'utilisateur
                 initializeApp();
             } else {
                 throw new Error(result.error || 'Une erreur est survenue.');
@@ -94,26 +94,36 @@ document.addEventListener('DOMContentLoaded', () => {
     async function logout() {
         await fetch('api/logout.php');
         currentUser = null;
+        // On réinitialise complètement l'état de l'application
+        authForm.reset();
         switchView(authView);
         document.body.classList.remove('app-loaded');
+        if (scoresChart) {
+            scoresChart.destroy();
+            scoresChart = null;
+        }
     }
 
-    // Vérifie si une session existe au chargement de la page
+    // CORRECTION : La fonction vérifie maintenant la session via le nouveau script
     async function checkSession() {
         try {
-            // On essaie de récupérer les scores. Si ça marche, l'utilisateur est connecté.
-            const response = await fetch('api/get_score.php');
+            const response = await fetch('api/check_session.php');
             if (response.ok) {
-                const data = await response.json(); // On récupère les données pour ne pas les redemander
-                allScoresData = data;
-                initializeApp();
+                const result = await response.json();
+                if (result.success) {
+                    // L'utilisateur est connecté, on stocke son nom
+                    currentUser = { username: result.username };
+                    initializeApp();
+                } else {
+                    throw new Error("Session invalide.");
+                }
             } else {
-                // L'utilisateur n'est pas connecté, on affiche l'écran de connexion
+                // L'utilisateur n'est pas connecté
                 switchView(authView);
                 document.body.classList.add('app-loaded');
             }
         } catch (error) {
-            console.error("Erreur de session", error);
+            console.error("Pas de session active, affichage de la page de connexion.", error);
             switchView(authView);
             document.body.classList.add('app-loaded');
         }
@@ -124,7 +134,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
 
     function initializeApp() {
-        welcomeMessage.textContent = `Bienvenue, ${usernameInput.value || 'utilisateur'} !`;
+        // CORRECTION : On utilise la variable currentUser pour le message
+        if (currentUser) {
+            welcomeMessage.textContent = `Bienvenue, ${currentUser.username} !`;
+        }
         switchView(mainView);
         document.body.classList.add('app-loaded');
         initializeSlider();
@@ -150,13 +163,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // =========================================================================
-    // --- LOGIQUE PRINCIPALE DE L'APPLICATION ---
+    // --- LOGIQUE PRINCIPALE DE L'APPLICATION (le reste du fichier est inchangé) ---
     // =========================================================================
 
     function switchView(viewToShow) {
         [authView, mainView, historyView].forEach(v => v.classList.remove('active-view'));
         viewToShow.classList.add('active-view');
-        // Réinitialise l'état de la liste en changeant de vue
         listContainer.classList.remove('visible');
         toggleListBtn.textContent = 'Afficher la liste';
     }
@@ -171,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ score: currentScore })
             });
             const result = await response.json();
-            if (result.success) {
+            if (response.ok && result.success) {
                 sendScoreBtn.style.backgroundColor = 'var(--success-color)';
                 sendScoreBtn.textContent = 'Envoyé !';
             } else {
@@ -181,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Erreur lors de l\'envoi du score:', error);
             sendScoreBtn.style.backgroundColor = 'var(--error-color)';
             sendScoreBtn.textContent = 'Échec';
+            if (error.message.includes('Utilisateur non connecté')) logout();
         }
         setTimeout(() => {
             sendScoreBtn.disabled = false;
@@ -193,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('api/get_score.php');
             if (!response.ok) {
-                if (response.status === 401) logout(); // Si non autorisé, déconnexion
+                if (response.status === 401) logout();
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             allScoresData = await response.json();
@@ -274,10 +287,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const item = document.createElement('div');
             item.className = 'filter-item';
+            // On s'assure que les IDs sont uniques pour éviter les conflits de clics
+            const uniqueId = `filter-${day.replace(/[^a-zA-Z0-9]/g, '')}`;
             item.innerHTML = `
-                <input type="checkbox" id="filter-${day}" value="${day}" checked>
+                <input type="checkbox" id="${uniqueId}" value="${day}" checked>
                 <span class="checkmark"></span>
-                <label for="filter-${day}">${labelText}</label>
+                <label for="${uniqueId}">${labelText}</label>
             `;
             chartFilterList.appendChild(item);
         });
@@ -297,7 +312,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const datasets = buildChartDatasets(allScoresData, selectedDays);
         if (scoresChart) {
             scoresChart.data.datasets = datasets;
-            // Recalculer les bornes de l'axe X
             const { min, max } = calculateXAxisBounds(datasets);
             scoresChart.options.scales.x.min = min;
             scoresChart.options.scales.x.max = max;
@@ -308,21 +322,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function calculateXAxisBounds(datasets) {
-        let minTime = 10; // Heure de début par défaut (ex: 10h)
-        let maxTime = 34; // Heure de fin par défaut (ex: 10h J+1)
+        let minTime = 10;
+        let maxTime = 34;
         
-        if (datasets.length > 0) {
-            minTime = Infinity;
-            maxTime = -Infinity;
-            datasets.forEach(dataset => {
-                dataset.data.forEach(point => {
-                    if (point.x < minTime) minTime = point.x;
-                    if (point.x > maxTime) maxTime = point.x;
-                });
-            });
+        const allPoints = datasets.flatMap(ds => ds.data);
+
+        if (allPoints.length > 0) {
+            minTime = Math.min(...allPoints.map(p => p.x));
+            maxTime = Math.max(...allPoints.map(p => p.x));
         }
         
-        // Ajoute une marge pour la lisibilité
         return { min: Math.floor(minTime) - 1, max: Math.ceil(maxTime) + 1 };
     }
 
@@ -337,13 +346,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const getTimeValue = (dateString) => {
                 const date = new Date(dateString);
                 let timeValue = date.getHours() + date.getMinutes() / 60;
-                if (date.getHours() < 10) timeValue += 24; // Pour les scores après minuit
+                if (date.getHours() < 10) timeValue += 24;
                 return timeValue;
             };
 
             return {
                 label: dayData.customName || new Date(day).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
-                data: scores.map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })),
+                data: scores.map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })).sort((a, b) => a.x - b.x),
                 borderColor: color,
                 backgroundColor: `${color}33`,
                 tension: 0.2,
@@ -362,7 +371,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const textColor = getComputedStyle(document.body).getPropertyValue('--on-surface-color').trim();
         const gridColor = 'rgba(255, 255, 255, 0.1)';
-
         const { min: axisMin, max: axisMax } = calculateXAxisBounds(initialDatasets);
         
         scoresChart = new Chart(chartContext, {
@@ -376,18 +384,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         type: 'linear',
                         min: axisMin,
                         max: axisMax,
-                        ticks: {
-                            color: textColor,
-                            stepSize: 2,
-                            callback: (value) => `${String(Math.floor(value) % 24).padStart(2, '0')}:00`
-                        },
+                        ticks: { color: textColor, stepSize: 2, callback: (value) => `${String(Math.floor(value) % 24).padStart(2, '0')}:00` },
                         grid: { color: gridColor }
                     },
                     y: {
-                        beginAtZero: true,
-                        max: 10,
-                        ticks: { color: textColor, stepSize: 1 },
-                        grid: { color: gridColor }
+                        beginAtZero: true, max: 10, ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }
                     }
                 },
                 plugins: {
@@ -408,7 +409,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Fonctions d'action de la liste ---
     function addListActionListeners() {
         scoresListContainer.addEventListener('click', (e) => {
             const editBtn = e.target.closest('.edit-btn');
@@ -453,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ id: scoreId })
             });
             const result = await res.json();
-            if (result.success) {
+            if (res.ok && result.success) {
                 fetchAndDisplayScores();
             } else {
                 throw new Error(result.error);
@@ -472,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ id, score: newScore })
             });
             const result = await res.json();
-            if (result.success) {
+            if (res.ok && result.success) {
                 fetchAndDisplayScores();
             } else {
                 throw new Error(result.error);
@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ date, name: newName })
             });
             const result = await res.json();
-            if (result.success) {
+            if (res.ok && result.success) {
                 fetchAndDisplayScores();
             } else {
                 throw new Error(result.error);
@@ -502,37 +502,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
-    // =========================================================================
     // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
-    // =========================================================================
-
-    // Authentification
     switchAuthBtn.addEventListener('click', switchAuthMode);
     authForm.addEventListener('submit', handleAuth);
     logoutBtn.addEventListener('click', logout);
-
-    // Navigation
     showHistoryBtn.addEventListener('click', () => { switchView(historyView); fetchAndDisplayScores(); });
     backToMainBtn.addEventListener('click', () => { switchView(mainView); });
-    
-    // Actions principales
     sendScoreBtn.addEventListener('click', sendScore);
     toggleListBtn.addEventListener('click', () => { listContainer.classList.toggle('visible'); toggleListBtn.textContent = listContainer.classList.contains('visible') ? 'Masquer la liste' : 'Afficher la liste'; });
-    
-    // Modales
     saveEditBtn.addEventListener('click', () => { const newScore = parseFloat(editScoreInput.value); if (scoreIdToUpdate !== null && !isNaN(newScore) && newScore >= 0 && newScore <= 10) { updateScore(scoreIdToUpdate, newScore); closeEditModal(); } });
     cancelEditBtn.addEventListener('click', closeEditModal);
     editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
-    
     saveRenameBtn.addEventListener('click', () => { const newName = renameDayInput.value.trim(); if (dayToRename) { renameDay(dayToRename, newName); closeRenameModal(); } });
     cancelRenameBtn.addEventListener('click', closeRenameModal);
     renameDayModal.addEventListener('click', (e) => { if (e.target === renameDayModal) closeRenameModal(); });
-
-    // Filtres du graphique
     chartFilterBtn.addEventListener('click', () => { chartFilterPanel.classList.toggle('visible'); });
     document.addEventListener('click', (e) => { if (!chartFilterDropdown.contains(e.target)) chartFilterPanel.classList.remove('visible'); });
-    
     chartFilterList.addEventListener('change', () => {
         const selectedDays = [...chartFilterList.querySelectorAll('input:checked')].map(input => input.value);
         updateChart(selectedDays);
@@ -540,7 +525,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     selectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = true); chartFilterList.dispatchEvent(new Event('change')); });
     deselectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = false); chartFilterList.dispatchEvent(new Event('change')); });
-
 
     // --- DÉMARRAGE ---
     checkSession();
