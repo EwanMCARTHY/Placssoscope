@@ -249,3 +249,24 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 }
 .modal-actions { display: flex; justify-content: space-between; gap: 16px; }
 .modal-actions .btn { width: 100%; margin: 0; }
+
+/* Style pour la case "Se souvenir de moi" */
+.form-extra-options {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    color: var(--on-surface-color);
+}
+
+.form-extra-options label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-extra-options input[type="checkbox"] {
+    cursor: pointer;
+}

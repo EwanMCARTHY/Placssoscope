@@ -67,20 +67,21 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         const username = usernameInput.value;
         const password = passwordInput.value;
+        const remember = document.getElementById('remember-me').checked;
         const endpoint = isLoginMode ? 'api/login.php' : 'api/register.php';
 
         try {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                // NOUVEAU : On envoie l'information "remember"
+                body: JSON.stringify({ username, password, remember })
             });
 
             const result = await response.json();
 
             if (response.ok && result.success) {
-                // Connexion réussie
-                currentUser = { username }; // On stocke le nom d'utilisateur
+                currentUser = { username };
                 initializeApp();
             } else {
                 throw new Error(result.error || 'Une erreur est survenue.');
