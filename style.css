@@ -459,3 +459,34 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
     border-top-left-radius: 0;
     border-top-right-radius: 0;
 }
+
+/* ==========================================================================
+   STYLES POUR LA MODALE D'INFORMATION
+   ========================================================================== */
+#info-btn {
+    /* Assure que l'icône est à gauche */
+    margin-right: auto; 
+}
+
+.info-content {
+    text-align: left;
+    margin: 24px 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.info-content p {
+    margin-bottom: 16px;
+}
+
+.info-signature {
+    margin-top: 24px;
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--on-surface-color);
+    opacity: 0.8;
+}
+
+#close-info-modal-btn {
+    width: 100%;
+}

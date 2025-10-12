@@ -20,6 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendScoreBtn = document.getElementById('send-score-btn');
     const showHistoryBtn = document.getElementById('show-history-btn');
     const scoreValueDisplay = document.getElementById('score-value-display');
+    const infoBtn = document.getElementById('info-btn');
+    const infoModal = document.getElementById('info-modal');
+    const closeInfoModalBtn = document.getElementById('close-info-modal-btn');
     
     // --- Éléments de la page d'historique ---
     const backToMainBtn = document.getElementById('back-to-main-btn');
@@ -545,6 +548,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
     // =========================================================================
+
+    // Gestion de la modale d'information
+    infoBtn.addEventListener('click', () => {
+        infoModal.classList.add('visible');
+    });
+
+    closeInfoModalBtn.addEventListener('click', () => {
+        infoModal.classList.remove('visible');
+    });
+
+    // Ferme la modale si on clique en dehors
+    infoModal.addEventListener('click', (e) => {
+        if (e.target === infoModal) {
+            infoModal.classList.remove('visible');
+        }
+    });
     
     // Authentification et Profil
     switchAuthBtn.addEventListener('click', switchAuthMode);

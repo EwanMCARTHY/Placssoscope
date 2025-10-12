@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plac'ss-oscope</title>
+    <title>Plac'ssographe</title>
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,6 +39,7 @@
 
         <div id="main-view" class="view">
             <div class="main-header">
+                <button id="info-btn" class="btn-icon" title="Informations"><i class="material-icons">info_outline</i></button>
                 <span id="welcome-message"></span>
                 <div class="header-actions">
                     <button id="profile-btn" class="btn-icon" title="Mon Profil"><i class="material-icons">person</i></button>
@@ -93,7 +94,6 @@
                 <button id="back-to-main-from-profile-btn" class="btn-icon" title="Retour"><i class="material-icons">arrow_back</i></button>
             </div>
             <div class="profile-content">
-
                 <div class="profile-section profile-picture-section">
                     <img id="profile-pic-display" src="assets/default-avatar.png" alt="Photo de profil" class="profile-picture">
                     <form id="upload-picture-form">
@@ -143,6 +143,18 @@
         </div>
     </div>
     
+    <div id="info-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Bienvenue dans le Plac’ssographe !</h3>
+            <div class="info-content">
+                <p>Ici vous pourrez revivre vos soirées en notant votre niveau d’alcoolémie à tout moment.</p>
+                <p>Il n’y a rien de plus simple, ouvrez le Plac'ssographe, notez votre alcoolémie entre 0 et 10 et voilà ! Le lendemain, vous pourrez voir l’évolution de votre courbe d’alcoolémie et la partager avec vos Chticop’ss.</p>
+                <p class="info-signature"><em>Toujours avec modération évidemment !<br><br>Boo(b)°ster 7-138Li224</em></p>
+            </div>
+            <button id="close-info-modal-btn" class="btn btn-secondary">Fermer</button>
+        </div>
+    </div>
+
     <div id="edit-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Modifier le score</h3>
@@ -153,6 +165,7 @@
             </div>
         </div>
     </div>
+
     <div id="rename-day-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Renommer la journée</h3>
