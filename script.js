@@ -425,12 +425,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(`api/get_common_evenings.php?friend_id=${friend.user_id}`);
-            const evenings = await response.json();
+            const eveningsData = await response.json();
+            
+            const evenings = Array.isArray(eveningsData) ? eveningsData : Object.values(eveningsData);
+
             commonEveningsList.innerHTML = '';
             if (evenings.length === 0) {
                 commonEveningsList.innerHTML = '<p>Aucune soirée en commun trouvée.</p>';
                 return;
             }
+
             evenings.forEach(evening => {
                 const eveningItem = document.createElement('div');
                 eveningItem.className = 'evening-item';
@@ -480,7 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const myDataset = {
             label: currentUser.username,
-            data: myScores.map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })).sort((a,b) => a.x - b.x),
+            data: (myScores || []).map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })).sort((a,b) => a.x - b.x),
             borderColor: 'hsl(210, 70%, 60%)',
             backgroundColor: 'hsla(210, 70%, 60%, 0.2)',
             tension: 0.2
@@ -488,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const friendDataset = {
             label: currentlyViewedFriend.username,
-            data: friendScores.map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })).sort((a,b) => a.x - b.x),
+            data: (friendScores || []).map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })).sort((a,b) => a.x - b.x),
             borderColor: 'hsl(150, 70%, 60%)',
             backgroundColor: 'hsla(150, 70%, 60%, 0.2)',
             tension: 0.2
@@ -517,7 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const minutes = Math.round((value % 1) * 60);
                                 return `Heure: ${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
                             },
-                            label: (c) => `Score: ${c.parsed.y.toFixed(1)}`
+                            label: (c) => `${c.dataset.label}: ${c.parsed.y.toFixed(1)}`
                         }
                     }
                 }
@@ -934,10 +938,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     backToFriendsListBtn.addEventListener('click', () => switchView(friendsView));
     backToFriendProfileBtn.addEventListener('click', () => {
-        if (currentlyViewedFriend) openFriendProfile(currentlyViewedFriend);
-        else switchView(friendsView);
+        if (currentlyViewedFriend) {
+            switchView(friendProfileView);
+        } else {
+            switchView(friendsView);
+        }
     });
-
 
     // Navigation principale et actions
     infoBtn.addEventListener('click', () => infoModal.classList.add('visible'));
