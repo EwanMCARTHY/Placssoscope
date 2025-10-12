@@ -21,6 +21,7 @@
 </head>
 <body>
     <div class="app-container">
+        <!-- Vue d'authentification -->
         <div id="auth-view" class="view">
             <div class="auth-container">
                 <h2 id="auth-title">Connexion</h2>
@@ -37,6 +38,7 @@
             </div>
         </div>
 
+        <!-- Vue principale -->
         <div id="main-view" class="view">
             <div class="main-header">
                 <button id="info-btn" class="btn-icon" title="Informations"><i class="material-icons">info_outline</i></button>
@@ -60,6 +62,7 @@
             </div>
         </div>
         
+        <!-- Vue historique -->
         <div id="history-view" class="view">
             <div class="history-header">
                 <h2>Historique des scores</h2>
@@ -89,6 +92,7 @@
             </div>
         </div>
 
+        <!-- Vue du profil -->
         <div id="profile-view" class="view">
             <div class="history-header">
                 <h2>Mon Profil</h2>
@@ -140,6 +144,7 @@
             </div>
         </div>
 
+        <!-- Vue Amis -->
         <div id="friends-view" class="view">
             <div class="history-header">
                 <h2>Amis</h2>
@@ -165,8 +170,43 @@
                 </div>
             </div>
         </div>
+
+        <!-- NOUVELLE VUE : Profil d'un ami -->
+        <div id="friend-profile-view" class="view">
+            <div class="history-header">
+                <h2 id="friend-profile-name">Profil de...</h2>
+                <button id="back-to-friends-list-btn" class="btn-icon" title="Retour à la liste d'amis"><i class="material-icons">arrow_back</i></button>
+            </div>
+            <div class="profile-content">
+                <div class="profile-section profile-picture-section">
+                    <img id="friend-profile-pic" src="assets/default-avatar.png" alt="Photo de profil" class="profile-picture">
+                    <h3 id="friend-profile-username"></h3>
+                </div>
+                <div class="profile-section">
+                    <h3>Soirées en commun</h3>
+                    <div id="common-evenings-list" class="user-list">
+                        <!-- La liste des soirées communes sera injectée ici -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOUVELLE VUE : Soirée partagée -->
+        <div id="shared-evening-view" class="view">
+            <div class="history-header">
+                <h2 id="shared-evening-title">Soirée du...</h2>
+                <button id="back-to-friend-profile-btn" class="btn-icon" title="Retour au profil de l'ami"><i class="material-icons">arrow_back</i></button>
+            </div>
+            <div class="history-content">
+                <div class="chart-container" style="height: 400px;">
+                    <canvas id="shared-scores-chart-container"></canvas>
+                </div>
+                <!-- On pourrait ajouter la liste des participants ici plus tard -->
+            </div>
+        </div>
     </div>
     
+    <!-- Modales -->
     <div id="info-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Bienvenue dans le Plac’ssographe !</h3>
