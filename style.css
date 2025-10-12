@@ -1,0 +1,251 @@
+/* ==========================================================================
+   CONFIGURATION ET VARIABLES
+   ========================================================================== */
+:root {
+    --background-color: #121212;
+    --surface-color: #1e1e1e;
+    --primary-color: #9333ea;
+    --primary-variant-color: #7e22ce;
+    --on-background-color: #e0e0e0;
+    --on-surface-color: #cccccc;
+    --error-color: #cf6679;
+    --success-color: #03dac6;
+    
+    --font-main: 'Inter', sans-serif;
+}
+
+/* ==========================================================================
+   STYLES DE BASE ET MISE EN PAGE (AVEC CORRECTION DÉFINITIVE)
+   ========================================================================== */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-main);
+    margin: 0;
+    background-color: var(--background-color);
+    color: var(--on-background-color);
+    /* On garde le verrouillage du scroll, c'est crucial pour le mobile */
+    overflow: hidden;
+    height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+    /* On retire la logique de centrage d'ici */
+}
+
+.app-container {
+    width: 100%;
+    max-width: 450px;
+    height: 100dvh;
+    background-color: var(--background-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    /* CORRECTION : On ajoute le centrage horizontal ici */
+    margin: 0 auto;
+}
+
+/* ==========================================================================
+   GESTION DES VUES (ÉCRANS)
+   ========================================================================== */
+.view {
+    padding: 24px;
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transform: scale(0.98);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.view.active-view {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+#main-view {
+    justify-content: space-between;
+}
+
+.main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+}
+
+.main-actions {
+    padding-bottom: 24px;
+}
+
+/* ==========================================================================
+   TYPOGRAPHIE
+   ========================================================================== */
+h1 { font-size: 2rem; margin: 0; }
+h2 { font-size: 1.5rem; color: var(--primary-color); margin-bottom: 24px; }
+p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
+
+/* ==========================================================================
+   SLIDER DE SCORE
+   ========================================================================== */
+.score-input-container {
+    position: relative;
+    width: 260px; height: 260px;
+    margin: 24px auto;
+    display: flex; justify-content: center; align-items: center;
+}
+
+#score-value-display {
+    position: absolute;
+    font-size: 3.5rem; font-weight: 600;
+    color: var(--on-background-color);
+    user-select: none; pointer-events: none; z-index: 10;
+}
+
+.rs-control .rs-bg-color { background-color: var(--surface-color); }
+.rs-range-color { background-color: var(--primary-color); }
+.rs-path-color { background-color: #444; }
+.rs-handle { background-color: #ffffff; padding: 4px; border: 4px solid var(--primary-color); }
+.rs-tooltip-text { display: none !important; }
+
+/* ==========================================================================
+   BOUTONS
+   ========================================================================== */
+.btn {
+    padding: 16px 32px; font-size: 1rem; font-weight: 600;
+    border: none; border-radius: 99px; cursor: pointer;
+    transition: all 0.2s ease; margin: 8px auto;
+    width: 80%; max-width: 320px; display: block;
+}
+.btn-primary { background-color: var(--primary-color); color: white; box-shadow: 0 4px 15px rgba(147, 51, 234, 0.2); }
+.btn-primary:hover { background-color: var(--primary-variant-color); transform: translateY(-2px); }
+.btn-primary:disabled { background-color: #444; cursor: not-allowed; }
+.btn-secondary { background-color: var(--surface-color); color: var(--on-surface-color); }
+.btn-secondary:hover { background-color: #333; }
+.btn-icon {
+    background: none; border: none; color: var(--on-surface-color);
+    cursor: pointer; padding: 8px; border-radius: 50%;
+}
+.btn-icon:hover { background-color: rgba(255, 255, 255, 0.1); color: var(--primary-color); }
+
+/* ==========================================================================
+   VUE HISTORIQUE
+   ========================================================================== */
+#history-view { overflow: hidden; }
+.history-content { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; }
+.chart-container { flex-shrink: 0; height: 250px; position: relative; }
+#scores-chart-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+#toggle-list-btn { flex-shrink: 0; margin-top: auto; }
+.list-container {
+    flex-shrink: 1; overflow: hidden;
+    transition: max-height 0.5s ease-in-out, opacity 0.5s ease-in-out;
+    max-height: 0; opacity: 0;
+}
+.list-container.visible { max-height: 50vh; opacity: 1; }
+#scores-list { height: 100%; overflow-y: auto; padding-right: 10px; }
+.day-group {
+    background-color: var(--surface-color); border-radius: 16px;
+    padding: 16px; margin-bottom: 16px; text-align: left;
+}
+.day-group h3 {
+    margin: 0 0 12px 0; color: var(--primary-color); font-size: 1rem;
+    border-bottom: 1px solid #333; padding-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.score-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 8px; border-bottom: 1px solid #2c2c2c;
+}
+.score-item:last-child { border-bottom: none; }
+.score-time { font-size: 0.9rem; color: var(--on-surface-color); }
+.score-value { font-size: 1.1rem; font-weight: 600; }
+.score-actions { display: flex; gap: 8px; }
+
+/* ==========================================================================
+   MENU DÉROULANT POUR LE FILTRE
+   ========================================================================== */
+.chart-filter-dropdown {
+    position: relative;
+    margin-bottom: 16px;
+}
+.btn-dropdown {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; width: auto; padding: 12px 24px;
+}
+.btn-dropdown .material-icons { transition: transform 0.3s ease; }
+.dropdown-panel {
+    position: absolute; top: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%); width: 90%; max-width: 350px;
+    background-color: var(--surface-color); border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); padding: 16px;
+    z-index: 100; opacity: 0; transform: translateX(-50%) translateY(-10px);
+    pointer-events: none; transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.dropdown-panel.visible { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.dropdown-panel.visible + .btn-dropdown .material-icons { transform: rotate(180deg); }
+.dropdown-actions {
+    display: flex; justify-content: space-between;
+    padding-bottom: 12px; border-bottom: 1px solid #333; margin-bottom: 12px;
+}
+.btn-link {
+    background: none; border: none; color: var(--primary-color);
+    cursor: pointer; font-size: 0.9rem; padding: 0;
+}
+#chart-filter-list { max-height: 200px; overflow-y: auto; text-align: left; }
+.filter-item { display: flex; align-items: center; padding: 12px 8px; border-radius: 8px; cursor: pointer; }
+.filter-item:hover { background-color: #333; }
+.filter-item input[type="checkbox"] { display: none; }
+.filter-item .checkmark {
+    width: 18px; height: 18px; border: 2px solid var(--on-surface-color);
+    border-radius: 4px; margin-right: 12px;
+    display: inline-flex; justify-content: center; align-items: center;
+    transition: all 0.2s ease;
+}
+.filter-item .checkmark::after {
+    content: 'check'; font-family: 'Material Icons'; font-size: 16px;
+    color: white; opacity: 0; transform: scale(0.5); transition: all 0.2s ease;
+}
+.filter-item input:checked + .checkmark { background-color: var(--primary-color); border-color: var(--primary-color); }
+.filter-item input:checked + .checkmark::after { opacity: 1; transform: scale(1); }
+.filter-item label { font-size: 1rem; user-select: none; cursor: pointer; }
+
+/* ==========================================================================
+   BARRE DE DÉFILEMENT (SCROLLBAR)
+   ========================================================================== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #777; }
+
+/* ==========================================================================
+   BOÎTE DE DIALOGUE (MODALE)
+   ========================================================================== */
+.modal-overlay {
+    position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.7);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.modal-overlay.visible { opacity: 1; pointer-events: auto; }
+.modal-content {
+    background-color: var(--surface-color); padding: 24px; border-radius: 16px;
+    width: 90%; max-width: 350px; text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+.modal-overlay.visible .modal-content { transform: scale(1); }
+.modal-content h3 { margin: 0 0 16px 0; color: var(--on-background-color); }
+.modal-input {
+    width: 100%; padding: 12px; font-size: 1.2rem; text-align: center;
+    background-color: var(--background-color); border: 1px solid #444;
+    color: var(--on-background-color); border-radius: 8px;
+    margin-bottom: 24px;
+}
+.modal-actions { display: flex; justify-content: space-between; gap: 16px; }
+.modal-actions .btn { width: 100%; margin: 0; }
