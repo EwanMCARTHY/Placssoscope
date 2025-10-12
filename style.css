@@ -266,6 +266,25 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 }
 
 /* ==========================================================================
+   STYLE POUR LA NOTIFICATION D'AMIS
+   ========================================================================== */
+.header-actions .btn-icon {
+    position: relative; /* Nécessaire pour positionner le point par-dessus */
+}
+
+.btn-icon.has-notification::after {
+    content: '';
+    position: absolute;
+    top: 6px;  /* Ajustez pour positionner verticalement */
+    right: 6px; /* Ajustez pour positionner horizontalement */
+    width: 8px;
+    height: 8px;
+    background-color: var(--error-color);
+    border-radius: 50%;
+    border: 2px solid var(--background-color); /* Bordure pour ressortir */
+}
+
+/* ==========================================================================
    STYLES POUR LA MODALE D'INFORMATION
    ========================================================================== */
 #info-btn {

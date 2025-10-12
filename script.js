@@ -182,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         switchView(mainView);
         document.body.classList.add('app-loaded');
         initializeSlider();
+        updateNotificationDot(); // Vérifie les notifications au démarrage
     }
 
     function switchView(viewToShow) {
@@ -211,11 +212,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // =========================================================================
-    // --- GESTION DE LA PAGE AMIS ---
+    // --- GESTION DES NOTIFICATIONS ET DE LA PAGE AMIS ---
     // =========================================================================
+
+    async function updateNotificationDot() {
+        try {
+            const response = await fetch('api/get_friend_requests.php');
+            const requests = await response.json();
+            if (requests && requests.length > 0) {
+                friendsBtn.classList.add('has-notification');
+            } else {
+                friendsBtn.classList.remove('has-notification');
+            }
+        } catch (error) {
+            console.error("Impossible de vérifier les notifications de demandes d'ami.", error);
+        }
+    }
 
     function openFriendsPage() {
         switchView(friendsView);
+        friendsBtn.classList.remove('has-notification'); // L'utilisateur a "vu" la notif
         switchTab(document.querySelector('.tab-link[data-tab="tab-requests"]'));
         loadFriendRequests();
         loadFriendsList();
@@ -270,6 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok && result.success) {
                 loadFriendRequests();
                 loadFriendsList();
+                updateNotificationDot(); // Met à jour le point au cas où c'était la dernière notif
             } else {
                 throw new Error(result.error);
             }
