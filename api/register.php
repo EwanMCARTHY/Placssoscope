@@ -2,7 +2,6 @@
 header('Content-Type: application/json');
 session_start();
 
-// 1. Valider la méthode et les données
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Méthode non autorisée.']);
@@ -26,34 +25,28 @@ if (empty($username) || empty($password)) {
     exit();
 }
 
-// 2. Hacher le mot de passe
 $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
-// 3. Interagir avec la base de données
 try {
-    // IMPORTANT : Remplacez les informations de connexion par les vôtres
-    $db_host = 'localhost'; // ou l'adresse de votre serveur de base de données
-    $db_name = 'placssoscope_db'; // Le nom de votre base de données
-    $db_user = 'root'; // Votre nom d'utilisateur
-    $db_pass = ''; // Votre mot de passe
+    $db_host = 'localhost';
+    $db_name = 'u551125034_placssographe';
+    $db_user = 'u551125034_contact';
+    $db_pass = 'Ewan2004+';
     
     $db = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_user, $db_pass);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Vérifier si l'utilisateur existe déjà
     $stmt = $db->prepare("SELECT id FROM users WHERE username = :username");
     $stmt->execute([':username' => $username]);
     if ($stmt->fetch()) {
-        http_response_code(409); // Conflict
+        http_response_code(409);
         echo json_encode(['success' => false, 'error' => 'Ce nom d\'utilisateur est déjà pris.']);
         exit();
     }
 
-    // Insérer le nouvel utilisateur
     $stmt = $db->prepare("INSERT INTO users (username, password) VALUES (:username, :password)");
     $stmt->execute([':username' => $username, ':password' => $password_hash]);
 
-    // Connecter automatiquement l'utilisateur après l'inscription
     $_SESSION['user_id'] = $db->lastInsertId();
     $_SESSION['username'] = $username;
 
@@ -61,6 +54,7 @@ try {
 
 } catch (PDOException $e) {
     http_response_code(500);
+    // Pour le débogage, il est utile de voir l'erreur exacte
     echo json_encode(['success' => false, 'error' => 'Erreur de base de données: ' . $e->getMessage()]);
     exit();
 }
