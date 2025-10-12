@@ -225,6 +225,65 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 ::-webkit-scrollbar-thumb:hover { background: #777; }
 
 /* ==========================================================================
+   STYLES POUR LA PAGE PROFIL
+   ========================================================================== */
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+#profile-view {
+    justify-content: flex-start;
+}
+
+.profile-content {
+    text-align: left;
+    margin-top: 24px;
+}
+
+.profile-section {
+    background-color: var(--surface-color);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.profile-section h3 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+.profile-section p {
+    font-size: 0.9rem;
+    color: var(--on-surface-color);
+    margin-bottom: 16px;
+}
+
+#change-password-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+#change-password-form .modal-input {
+    margin-bottom: 0;
+}
+
+#change-password-form .btn {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.btn-danger {
+    width: 100%;
+    background-color: var(--error-color);
+    color: white;
+}
+.btn-danger:hover {
+    background-color: #b04f5f;
+}
+
+/* ==========================================================================
    BOÎTE DE DIALOGUE (MODALE)
    ========================================================================== */
 .modal-overlay {

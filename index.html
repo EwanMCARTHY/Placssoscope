@@ -28,12 +28,8 @@
                 <form id="auth-form">
                     <input type="text" id="username" class="modal-input" placeholder="Nom d'utilisateur" required autocomplete="username">
                     <input type="password" id="password" class="modal-input" placeholder="Mot de passe" required autocomplete="current-password">
-                    
                     <div class="form-extra-options">
-                        <label for="remember-me">
-                            <input type="checkbox" id="remember-me">
-                            Se souvenir de moi
-                        </label>
+                        <label for="remember-me"><input type="checkbox" id="remember-me" checked> Se souvenir de moi</label>
                     </div>
                     <button type="submit" id="auth-submit-btn" class="btn btn-primary">Se connecter</button>
                 </form>
@@ -44,7 +40,10 @@
         <div id="main-view" class="view">
             <div class="main-header">
                 <span id="welcome-message"></span>
-                <button id="logout-btn" class="btn-icon" title="Se déconnecter"><i class="material-icons">logout</i></button>
+                <div class="header-actions">
+                    <button id="profile-btn" class="btn-icon" title="Mon Profil"><i class="material-icons">person</i></button>
+                    <button id="logout-btn" class="btn-icon" title="Se déconnecter"><i class="material-icons">logout</i></button>
+                </div>
             </div>
             <div class="main-content">
                 <h1>Niveau d'alcoolémie sur 10 ?</h1>
@@ -58,7 +57,7 @@
                 <button id="show-history-btn" class="btn btn-secondary">Voir l'historique</button>
             </div>
         </div>
-
+        
         <div id="history-view" class="view">
             <div class="history-header">
                 <h2>Historique des scores</h2>
@@ -87,8 +86,40 @@
                 </div>
             </div>
         </div>
-    </div>
 
+        <div id="profile-view" class="view">
+            <div class="history-header">
+                <h2>Mon Profil</h2>
+                <button id="back-to-main-from-profile-btn" class="btn-icon" title="Retour"><i class="material-icons">arrow_back</i></button>
+            </div>
+            <div class="profile-content">
+                <div class="profile-section">
+                    <h3>Changer de nom d'utilisateur</h3>
+                    <form id="change-username-form">
+                        <input type="text" id="new-username" class="modal-input" placeholder="Nouveau nom d'utilisateur" required autocomplete="username">
+                        <button type="submit" class="btn btn-secondary">Mettre à jour</button>
+                    </form>
+                </div>
+                <div class="profile-section">
+                    <h3>Changer le mot de passe</h3>
+                    <form id="change-password-form">
+                        <input type="text" name="username" autocomplete="username" value="" style="display: none;">
+                        
+                        <input type="password" id="current-password" class="modal-input" placeholder="Mot de passe actuel" required autocomplete="current-password">
+                        <input type="password" id="new-password" class="modal-input" placeholder="Nouveau mot de passe" required autocomplete="new-password">
+                        <input type="password" id="confirm-password" class="modal-input" placeholder="Confirmer le nouveau mot de passe" required autocomplete="new-password">
+                        <button type="submit" class="btn btn-secondary">Mettre à jour</button>
+                    </form>
+                </div>
+                <div class="profile-section">
+                    <h3>Zone de danger</h3>
+                    <p>Cette action est irréversible. Toutes vos données seront effacées.</p>
+                    <button id="delete-account-btn" class="btn btn-danger">Supprimer mon compte</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div id="edit-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Modifier le score</h3>
@@ -99,7 +130,6 @@
             </div>
         </div>
     </div>
-
     <div id="rename-day-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Renommer la journée</h3>

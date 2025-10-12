@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authView = document.getElementById('auth-view');
     const mainView = document.getElementById('main-view');
     const historyView = document.getElementById('history-view');
+    const profileView = document.getElementById('profile-view'); // NOUVEAU
 
     // --- Éléments d'authentification ---
     const authForm = document.getElementById('auth-form');
@@ -15,20 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logout-btn');
     const welcomeMessage = document.getElementById('welcome-message');
 
-    // --- Éléments de l'application principale ---
+    // --- Éléments de la page principale ---
     const sendScoreBtn = document.getElementById('send-score-btn');
     const showHistoryBtn = document.getElementById('show-history-btn');
-    const backToMainBtn = document.getElementById('back-to-main-btn');
     const scoreValueDisplay = document.getElementById('score-value-display');
+    
+    // --- Éléments de la page d'historique ---
+    const backToMainBtn = document.getElementById('back-to-main-btn');
     const scoresListContainer = document.getElementById('scores-list');
     const toggleListBtn = document.getElementById('toggle-list-btn');
     const listContainer = document.getElementById('list-container');
-
-    // --- Éléments des modales et filtres (inchangés) ---
-    const editModal = document.getElementById('edit-modal');
-    const editScoreInput = document.getElementById('edit-score-input');
-    const saveEditBtn = document.getElementById('save-edit-btn');
-    const cancelEditBtn = document.getElementById('cancel-edit-btn');
     const chartFilterDropdown = document.getElementById('chart-filter-dropdown');
     const chartFilterBtn = document.getElementById('chart-filter-btn');
     const chartFilterBtnText = document.getElementById('chart-filter-btn-text');
@@ -36,6 +33,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const chartFilterList = document.getElementById('chart-filter-list');
     const selectAllBtn = document.getElementById('select-all-btn');
     const deselectAllBtn = document.getElementById('deselect-all-btn');
+
+    // --- Éléments de la page de profil (NOUVEAU) ---
+    const profileBtn = document.getElementById('profile-btn');
+    const backToMainFromProfileBtn = document.getElementById('back-to-main-from-profile-btn');
+    const changePasswordForm = document.getElementById('change-password-form');
+    const deleteAccountBtn = document.getElementById('delete-account-btn');
+    const changeUsernameForm = document.getElementById('change-username-form');
+
+    // --- Éléments des modales ---
+    const editModal = document.getElementById('edit-modal');
+    const editScoreInput = document.getElementById('edit-score-input');
+    const saveEditBtn = document.getElementById('save-edit-btn');
+    const cancelEditBtn = document.getElementById('cancel-edit-btn');
     const renameDayModal = document.getElementById('rename-day-modal');
     const renameDayInput = document.getElementById('rename-day-input');
     const saveRenameBtn = document.getElementById('save-rename-btn');
@@ -43,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- Variables d'état ---
     let isLoginMode = true;
-    let currentUser = null; // Contiendra { username: '...' }
+    let currentUser = null;
     let currentScore = 5.0;
     let scoresChart;
     let scoreIdToUpdate = null;
@@ -51,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allScoresData = {};
 
     // =========================================================================
-    // --- GESTION DE L'AUTHENTIFICATION ---
+    // --- GESTION DE L'AUTHENTIFICATION ET DE LA SESSION ---
     // =========================================================================
 
     function switchAuthMode() {
@@ -74,12 +84,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // NOUVEAU : On envoie l'information "remember"
                 body: JSON.stringify({ username, password, remember })
             });
-
             const result = await response.json();
-
             if (response.ok && result.success) {
                 currentUser = { username };
                 initializeApp();
@@ -95,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function logout() {
         await fetch('api/logout.php');
         currentUser = null;
-        // On réinitialise complètement l'état de l'application
         authForm.reset();
         switchView(authView);
         document.body.classList.remove('app-loaded');
@@ -105,43 +111,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // CORRECTION : La fonction vérifie maintenant la session via le nouveau script
     async function checkSession() {
         try {
             const response = await fetch('api/check_session.php');
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
-                    // L'utilisateur est connecté, on stocke son nom
                     currentUser = { username: result.username };
                     initializeApp();
                 } else {
                     throw new Error("Session invalide.");
                 }
             } else {
-                // L'utilisateur n'est pas connecté
                 switchView(authView);
                 document.body.classList.add('app-loaded');
             }
         } catch (error) {
-            console.error("Pas de session active, affichage de la page de connexion.", error);
+            console.error("Pas de session active, affichage de la page de connexion.");
             switchView(authView);
             document.body.classList.add('app-loaded');
         }
     }
     
     // =========================================================================
-    // --- INITIALISATION DE L'APPLICATION ---
+    // --- INITIALISATION ET NAVIGATION ---
     // =========================================================================
 
     function initializeApp() {
-        // CORRECTION : On utilise la variable currentUser pour le message
         if (currentUser) {
             welcomeMessage.textContent = `Bienvenue, ${currentUser.username} !`;
         }
         switchView(mainView);
         document.body.classList.add('app-loaded');
         initializeSlider();
+    }
+
+    function switchView(viewToShow) {
+        [authView, mainView, historyView, profileView].forEach(v => v.classList.remove('active-view'));
+        viewToShow.classList.add('active-view');
+        listContainer.classList.remove('visible');
+        toggleListBtn.textContent = 'Afficher la liste';
     }
 
     function initializeSlider() {
@@ -164,15 +173,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // =========================================================================
-    // --- LOGIQUE PRINCIPALE DE L'APPLICATION (le reste du fichier est inchangé) ---
+    // --- LOGIQUE PRINCIPALE (SCORES, HISTORIQUE, GRAPHIQUES) ---
     // =========================================================================
-
-    function switchView(viewToShow) {
-        [authView, mainView, historyView].forEach(v => v.classList.remove('active-view'));
-        viewToShow.classList.add('active-view');
-        listContainer.classList.remove('visible');
-        toggleListBtn.textContent = 'Afficher la liste';
-    }
 
     async function sendScore() {
         sendScoreBtn.disabled = true;
@@ -188,13 +190,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 sendScoreBtn.style.backgroundColor = 'var(--success-color)';
                 sendScoreBtn.textContent = 'Envoyé !';
             } else {
+                if (response.status === 401) logout();
                 throw new Error(result.error || 'Erreur inconnue');
             }
         } catch (error) {
             console.error('Erreur lors de l\'envoi du score:', error);
             sendScoreBtn.style.backgroundColor = 'var(--error-color)';
             sendScoreBtn.textContent = 'Échec';
-            if (error.message.includes('Utilisateur non connecté')) logout();
         }
         setTimeout(() => {
             sendScoreBtn.disabled = false;
@@ -211,15 +213,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             allScoresData = await response.json();
-            
             displayScoresList(allScoresData);
             populateChartFilters(allScoresData);
             const allDays = Object.keys(allScoresData);
             updateChart(allDays);
             updateFilterButtonText(allDays.length);
-
             toggleListBtn.style.display = allDays.length > 0 ? 'block' : 'none';
-            
         } catch (error) {
             console.error('Erreur lors de la récupération des scores:', error);
             scoresListContainer.innerHTML = `<p style="color: var(--error-color);">Impossible de charger l'historique.</p>`;
@@ -239,19 +238,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const dayGroupEl = document.createElement('div');
             dayGroupEl.className = 'day-group';
             dayGroupEl.dataset.day = day;
-
             const title = document.createElement('h3');
             const titleText = document.createElement('span');
             titleText.textContent = dayData.customName || new Date(day).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            
             const renameBtn = document.createElement('button');
             renameBtn.className = 'btn-icon rename-day-btn';
             renameBtn.innerHTML = `<i class="material-icons">drive_file_rename_outline</i>`;
-            
             title.appendChild(titleText);
             title.appendChild(renameBtn);
             dayGroupEl.appendChild(title);
-
             const scoresForDay = dayData.scores;
             if (Array.isArray(scoresForDay)) {
                 scoresForDay.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).forEach(score => {
@@ -273,6 +268,9 @@ document.addEventListener('DOMContentLoaded', () => {
         addListActionListeners();
     }
 
+    // --- Fonctions utilitaires (graphiques, modales, etc.) ---
+    // (Cette section contient les fonctions qui n'ont pas changé)
+
     function populateChartFilters(dataByDay) {
         chartFilterList.innerHTML = '';
         const sortedDays = Object.keys(dataByDay).sort((a, b) => new Date(b) - new Date(a));
@@ -285,10 +283,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const dayData = dataByDay[day];
             const date = new Date(day);
             const labelText = dayData.customName || date.toLocaleDateString('fr-FR', { weekday: 'short', month: 'short', day: 'numeric' });
-            
             const item = document.createElement('div');
             item.className = 'filter-item';
-            // On s'assure que les IDs sont uniques pour éviter les conflits de clics
             const uniqueId = `filter-${day.replace(/[^a-zA-Z0-9]/g, '')}`;
             item.innerHTML = `
                 <input type="checkbox" id="${uniqueId}" value="${day}" checked>
@@ -323,16 +319,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function calculateXAxisBounds(datasets) {
-        let minTime = 10;
-        let maxTime = 34;
-        
+        let minTime = 10, maxTime = 34;
         const allPoints = datasets.flatMap(ds => ds.data);
-
         if (allPoints.length > 0) {
             minTime = Math.min(...allPoints.map(p => p.x));
             maxTime = Math.max(...allPoints.map(p => p.x));
         }
-        
         return { min: Math.floor(minTime) - 1, max: Math.ceil(maxTime) + 1 };
     }
 
@@ -342,7 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const dayData = dataByDay[day];
             const scores = dayData.scores;
             if (!Array.isArray(scores)) return null;
-
             const color = `hsl(${(index * 50) % 360}, 70%, 60%)`;
             const getTimeValue = (dateString) => {
                 const date = new Date(dateString);
@@ -350,15 +341,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (date.getHours() < 10) timeValue += 24;
                 return timeValue;
             };
-
             return {
                 label: dayData.customName || new Date(day).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
                 data: scores.map(s => ({ x: getTimeValue(s.created_at), y: parseFloat(s.score_value) })).sort((a, b) => a.x - b.x),
-                borderColor: color,
-                backgroundColor: `${color}33`,
-                tension: 0.2,
-                pointRadius: 4,
-                pointHoverRadius: 7
+                borderColor: color, backgroundColor: `${color}33`, tension: 0.2, pointRadius: 4, pointHoverRadius: 7
             };
         }).filter(ds => ds !== null);
     }
@@ -367,41 +353,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const chartCanvas = document.getElementById('scores-chart-container');
         if (!chartCanvas) return;
         const chartContext = chartCanvas.getContext('2d');
-
         if (scoresChart) scoresChart.destroy();
-
         const textColor = getComputedStyle(document.body).getPropertyValue('--on-surface-color').trim();
         const gridColor = 'rgba(255, 255, 255, 0.1)';
         const { min: axisMin, max: axisMax } = calculateXAxisBounds(initialDatasets);
-        
         scoresChart = new Chart(chartContext, {
-            type: 'line',
-            data: { datasets: initialDatasets },
+            type: 'line', data: { datasets: initialDatasets },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: {
-                        type: 'linear',
-                        min: axisMin,
-                        max: axisMax,
-                        ticks: { color: textColor, stepSize: 2, callback: (value) => `${String(Math.floor(value) % 24).padStart(2, '0')}:00` },
-                        grid: { color: gridColor }
-                    },
-                    y: {
-                        beginAtZero: true, max: 10, ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }
-                    }
+                    x: { type: 'linear', min: axisMin, max: axisMax, ticks: { color: textColor, stepSize: 2, callback: (value) => `${String(Math.floor(value) % 24).padStart(2, '0')}:00` }, grid: { color: gridColor } },
+                    y: { beginAtZero: true, max: 10, ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor } }
                 },
                 plugins: {
                     legend: { display: true, labels: { color: textColor } },
                     tooltip: {
                         callbacks: {
-                            title: (tooltipItems) => {
-                                const value = tooltipItems[0].parsed.x;
-                                const hour = Math.floor(value) % 24;
-                                const minutes = Math.round((value % 1) * 60);
-                                return `Heure: ${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                            },
+                            title: (items) => `Heure: ${new Date(items[0].parsed.x * 3600 * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
                             label: (c) => `Score: ${c.parsed.y.toFixed(1)}`
                         }
                     }
@@ -410,113 +378,157 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // =========================================================================
+    // --- GESTION DES ACTIONS (PROFIL, SCORES) ---
+    // =========================================================================
+    
+    // --- NOUVEAU : Fonctions de la page de profil ---
+    async function handleChangePassword(event) {
+        event.preventDefault();
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+
+        if (newPassword !== confirmPassword) {
+            alert("Les nouveaux mots de passe ne correspondent pas.");
+            return;
+        }
+
+        try {
+            const response = await fetch('api/change_password.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert('Mot de passe changé avec succès !');
+                changePasswordForm.reset();
+            } else {
+                throw new Error(result.error || "Une erreur s'est produite.");
+            }
+        } catch (error) {
+            alert(`Erreur : ${error.message}`);
+        }
+    }
+
+    async function handleDeleteAccount() {
+        const confirmation = prompt("Pour confirmer la suppression DÉFINITIVE de votre compte et de toutes vos données, veuillez taper 'SUPPRIMER' dans le champ ci-dessous.");
+        if (confirmation !== 'SUPPRIMER') {
+            alert('Suppression annulée.');
+            return;
+        }
+
+        try {
+            const response = await fetch('api/delete_account.php', { method: 'POST' });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert('Votre compte a été supprimé.');
+                logout(); // Déconnecte et ramène à l'écran de connexion
+            } else {
+                throw new Error(result.error || "Une erreur s'est produite.");
+            }
+        } catch (error) {
+            alert(`Erreur : ${error.message}`);
+        }
+    }
+
+    async function handleChangeUsername(event) {
+        event.preventDefault();
+        const newUsername = document.getElementById('new-username').value;
+        if (!newUsername) {
+            alert("Le nom d'utilisateur ne peut pas être vide.");
+            return;
+        }
+
+        try {
+            const response = await fetch('api/change_username.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ newUsername })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert('Nom d\'utilisateur changé avec succès !');
+                // Mettre à jour l'affichage
+                currentUser.username = result.newUsername;
+                welcomeMessage.textContent = `Bienvenue, ${currentUser.username} !`;
+                changeUsernameForm.reset();
+            } else {
+                throw new Error(result.error || "Une erreur s'est produite.");
+            }
+        } catch (error) {
+            alert(`Erreur : ${error.message}`);
+        }
+    }
+
+    // --- Fonctions de gestion de la liste des scores ---
     function addListActionListeners() {
         scoresListContainer.addEventListener('click', (e) => {
-            const editBtn = e.target.closest('.edit-btn');
-            if (editBtn) handleEdit(editBtn.closest('.score-item'));
-            const deleteBtn = e.target.closest('.delete-btn');
-            if (deleteBtn) handleDelete(deleteBtn.closest('.score-item'));
-            const renameBtn = e.target.closest('.rename-day-btn');
-            if (renameBtn) handleRename(renameBtn.closest('.day-group'));
+            const editBtn = e.target.closest('.edit-btn'); if (editBtn) handleEdit(editBtn.closest('.score-item'));
+            const deleteBtn = e.target.closest('.delete-btn'); if (deleteBtn) handleDelete(deleteBtn.closest('.score-item'));
+            const renameBtn = e.target.closest('.rename-day-btn'); if (renameBtn) handleRename(renameBtn.closest('.day-group'));
         });
     }
-
-    function handleEdit(scoreItem) {
-        scoreIdToUpdate = scoreItem.dataset.id;
-        editScoreInput.value = scoreItem.querySelector('.score-value').textContent;
-        editModal.classList.add('visible');
-    }
-    function closeEditModal() {
-        editModal.classList.remove('visible');
-        scoreIdToUpdate = null;
-    }
-    
-    function handleRename(dayGroup) {
-        dayToRename = dayGroup.dataset.day;
-        const currentName = allScoresData[dayToRename]?.customName || '';
-        renameDayInput.value = currentName;
-        renameDayModal.classList.add('visible');
-        renameDayInput.focus();
-    }
-    function closeRenameModal() {
-        renameDayModal.classList.remove('visible');
-        dayToRename = null;
-    }
+    function handleEdit(scoreItem) { scoreIdToUpdate = scoreItem.dataset.id; editScoreInput.value = scoreItem.querySelector('.score-value').textContent; editModal.classList.add('visible'); }
+    function closeEditModal() { editModal.classList.remove('visible'); scoreIdToUpdate = null; }
+    function handleRename(dayGroup) { dayToRename = dayGroup.dataset.day; const currentName = allScoresData[dayToRename]?.customName || ''; renameDayInput.value = currentName; renameDayModal.classList.add('visible'); renameDayInput.focus(); }
+    function closeRenameModal() { renameDayModal.classList.remove('visible'); dayToRename = null; }
     
     async function handleDelete(scoreItem) {
-        const scoreId = scoreItem.dataset.id;
         if (!confirm("Voulez-vous vraiment supprimer ce score ?")) return;
-        
         try {
-            const res = await fetch('api/delete_score.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: scoreId })
-            });
+            const res = await fetch('api/delete_score.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: scoreItem.dataset.id }) });
             const result = await res.json();
-            if (res.ok && result.success) {
-                fetchAndDisplayScores();
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error) {
-            console.error("Erreur de suppression:", error);
-            alert("La suppression a échoué.");
-        }
+            if (res.ok && result.success) { fetchAndDisplayScores(); } else { throw new Error(result.error); }
+        } catch (error) { console.error("Erreur de suppression:", error); alert("La suppression a échoué."); }
     }
-
     async function updateScore(id, newScore) {
         try {
-            const res = await fetch('api/update_score.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, score: newScore })
-            });
+            const res = await fetch('api/update_score.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, score: newScore }) });
             const result = await res.json();
-            if (res.ok && result.success) {
-                fetchAndDisplayScores();
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error) {
-            console.error('Erreur de mise à jour:', error);
-            alert("La mise à jour a échoué.");
-        }
+            if (res.ok && result.success) { fetchAndDisplayScores(); } else { throw new Error(result.error); }
+        } catch (error) { console.error('Erreur de mise à jour:', error); alert("La mise à jour a échoué."); }
     }
-    
     async function renameDay(date, newName) {
         try {
-            const res = await fetch('api/rename_day.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, name: newName })
-            });
+            const res = await fetch('api/rename_day.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, name: newName }) });
             const result = await res.json();
-            if (res.ok && result.success) {
-                fetchAndDisplayScores();
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error) {
-            console.error('Erreur lors du renommage:', error);
-            alert("Le renommage a échoué.");
-        }
+            if (res.ok && result.success) { fetchAndDisplayScores(); } else { throw new Error(result.error); }
+        } catch (error) { console.error('Erreur lors du renommage:', error); alert("Le renommage a échoué."); }
     }
 
+    // =========================================================================
     // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
+    // =========================================================================
+    
+    // Authentification et Profil
     switchAuthBtn.addEventListener('click', switchAuthMode);
     authForm.addEventListener('submit', handleAuth);
     logoutBtn.addEventListener('click', logout);
+    profileBtn.addEventListener('click', () => switchView(profileView));
+    backToMainFromProfileBtn.addEventListener('click', () => switchView(mainView));
+    changePasswordForm.addEventListener('submit', handleChangePassword);
+    deleteAccountBtn.addEventListener('click', handleDeleteAccount);
+    changeUsernameForm.addEventListener('submit', handleChangeUsername);
+
+    // Navigation principale
     showHistoryBtn.addEventListener('click', () => { switchView(historyView); fetchAndDisplayScores(); });
-    backToMainBtn.addEventListener('click', () => { switchView(mainView); });
+    backToMainBtn.addEventListener('click', () => switchView(mainView));
+    
+    // Actions
     sendScoreBtn.addEventListener('click', sendScore);
     toggleListBtn.addEventListener('click', () => { listContainer.classList.toggle('visible'); toggleListBtn.textContent = listContainer.classList.contains('visible') ? 'Masquer la liste' : 'Afficher la liste'; });
+    
+    // Modales
     saveEditBtn.addEventListener('click', () => { const newScore = parseFloat(editScoreInput.value); if (scoreIdToUpdate !== null && !isNaN(newScore) && newScore >= 0 && newScore <= 10) { updateScore(scoreIdToUpdate, newScore); closeEditModal(); } });
     cancelEditBtn.addEventListener('click', closeEditModal);
     editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
     saveRenameBtn.addEventListener('click', () => { const newName = renameDayInput.value.trim(); if (dayToRename) { renameDay(dayToRename, newName); closeRenameModal(); } });
     cancelRenameBtn.addEventListener('click', closeRenameModal);
     renameDayModal.addEventListener('click', (e) => { if (e.target === renameDayModal) closeRenameModal(); });
+
+    // Filtres du graphique
     chartFilterBtn.addEventListener('click', () => { chartFilterPanel.classList.toggle('visible'); });
     document.addEventListener('click', (e) => { if (!chartFilterDropdown.contains(e.target)) chartFilterPanel.classList.remove('visible'); });
     chartFilterList.addEventListener('change', () => {
@@ -527,6 +539,6 @@ document.addEventListener('DOMContentLoaded', () => {
     selectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = true); chartFilterList.dispatchEvent(new Event('change')); });
     deselectAllBtn.addEventListener('click', () => { chartFilterList.querySelectorAll('input').forEach(input => input.checked = false); chartFilterList.dispatchEvent(new Event('change')); });
 
-    // --- DÉMARRAGE ---
+    // --- DÉMARRAGE DE L'APPLICATION ---
     checkSession();
 });
