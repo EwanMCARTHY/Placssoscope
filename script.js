@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const userSearchInput = document.getElementById('user-search-input');
     const userSearchResults = document.getElementById('user-search-results');
     const friendsList = document.getElementById('friends-list');
+    const friendSuggestionsList = document.getElementById('friend-suggestions-list');
 
     // --- Éléments du Profil Ami ---
     const backToFriendsListBtn = document.getElementById('back-to-friends-list-btn');
@@ -207,8 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function switchView(viewToShow) {
-        [authView, mainView, historyView, profileView, friendsView, friendProfileView, sharedEveningView].forEach(v => v.classList.remove('active-view'));
-        viewToShow.classList.add('active-view');
+        [authView, mainView, historyView, profileView, friendsView, friendProfileView, sharedEveningView].forEach(v => {
+            if(v) v.classList.remove('active-view');
+        });
+        if(viewToShow) viewToShow.classList.add('active-view');
         listContainer.classList.remove('visible');
         toggleListBtn.textContent = 'Afficher la liste';
     }
@@ -256,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         switchTab(document.querySelector('.tab-link[data-tab="tab-requests"]'));
         loadFriendRequests();
         loadFriendsList();
+        loadFriendSuggestions();
     }
 
     function switchTab(clickedTab) {
@@ -263,6 +267,34 @@ document.addEventListener('DOMContentLoaded', () => {
         tabContents.forEach(content => content.classList.remove('active'));
         clickedTab.classList.add('active');
         document.getElementById(clickedTab.dataset.tab).classList.add('active');
+    }
+    
+    async function loadFriendSuggestions() {
+        try {
+            const response = await fetch('api/get_friend_suggestions.php');
+            const suggestions = await response.json();
+            friendSuggestionsList.innerHTML = '';
+            const container = document.querySelector('.suggestions-container');
+            if (!suggestions || suggestions.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+            suggestions.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.innerHTML = `
+                    <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
+                    <div class="user-item-info">${user.username}</div>
+                    <div class="user-item-actions">
+                        <button class="btn-icon add-friend" data-user-id="${user.id}" title="Ajouter en ami"><i class="material-icons">person_add</i></button>
+                    </div>
+                `;
+                friendSuggestionsList.appendChild(userItem);
+            });
+        } catch (error) {
+            console.error('Erreur lors du chargement des suggestions:', error);
+        }
     }
 
     async function loadFriendRequests() {
@@ -482,7 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             container.style.display = 'block';
             eveningAttendees.forEach(attendee => {
-                if (attendee.user_id === currentlyViewedFriend.user_id) return;
+                if (attendee.user_id == currentlyViewedFriend.user_id) return;
                 const userItem = document.createElement('div');
                 userItem.className = 'user-item';
                 userItem.innerHTML = `
@@ -966,6 +998,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (addBtn) {
             addBtn.disabled = true;
             sendFriendRequest(addBtn.dataset.userId);
+        }
+    });
+    friendSuggestionsList.addEventListener('click', (e) => {
+        const addBtn = e.target.closest('.add-friend');
+        if (addBtn) {
+            addBtn.disabled = true;
+            sendFriendRequest(addBtn.dataset.userId);
+            addBtn.closest('.user-item').style.display = 'none';
         }
     });
     friendsList.addEventListener('click', (e) => {

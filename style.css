@@ -80,6 +80,7 @@ body {
    ========================================================================== */
 h1 { font-size: 2rem; margin: 0; }
 h2 { font-size: 1.5rem; color: var(--primary-color); margin-bottom: 24px; }
+h3 { font-size: 1.1rem; color: var(--on-background-color); margin-bottom: 16px; }
 p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 
 /* ==========================================================================
@@ -194,6 +195,8 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 .user-item-actions .btn-icon { background-color: #333; }
 .user-item-actions .btn-icon.accept { color: var(--success-color); }
 .user-item-actions .btn-icon.decline { color: var(--error-color); }
+.suggestions-container { margin-top: 32px; text-align: left; }
+.suggestions-container h3 { font-size: 1rem; color: var(--on-surface-color); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #333; }
 
 /* ==========================================================================
    STYLES POUR LA MODALE D'INFORMATION ET NOTIFICATIONS
@@ -206,7 +209,7 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 .btn-icon.has-notification::after { content: ''; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background-color: var(--error-color); border-radius: 50%; border: 2px solid var(--background-color); }
 
 /* ==========================================================================
-   STYLES POUR LES SOIRÉES COMMUNES (CORRIGÉ)
+   STYLES POUR LES SOIRÉES COMMUNES
    ========================================================================== */
 #friend-profile-view { justify-content: flex-start; }
 #friend-profile-username { margin-top: 0; color: var(--on-background-color); }
@@ -215,25 +218,9 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 .evening-item .date { font-weight: 600; font-size: 1.1rem; margin-bottom: 8px; }
 .evening-item .names { font-size: 0.9rem; color: var(--on-surface-color); }
 
-/* CORRECTION DE LA MISE EN PAGE */
-#shared-evening-view { 
-    justify-content: flex-start;
-    overflow: hidden; /* Empêche le débordement global */
-}
-#shared-evening-view .chart-container { 
-    height: 300px; /* Hauteur fixe pour le graphique */
-    flex-shrink: 0; /* Empêche le graphique de se réduire */
-}
-.attendees-container {
-    margin-top: 24px;
-    text-align: left;
-    background-color: var(--surface-color);
-    border-radius: 16px;
-    padding: 16px;
-    flex-grow: 1; /* Permet à ce conteneur de prendre l'espace restant */
-    overflow-y: auto; /* Rend la liste déroulante si elle est trop longue */
-    min-height: 0; /* Astuce flexbox pour que le scroll fonctionne */
-}
+#shared-evening-view { justify-content: flex-start; overflow: hidden; }
+#shared-evening-view .chart-container { height: 300px; flex-shrink: 0; }
+.attendees-container { margin-top: 24px; text-align: left; background-color: var(--surface-color); border-radius: 16px; padding: 16px; flex-grow: 1; overflow-y: auto; min-height: 0; }
 .attendees-container h3 { margin-top: 0; font-size: 1rem; color: var(--on-background-color); border-bottom: 1px solid #333; padding-bottom: 12px; margin-bottom: 12px; }
 .attendees-container .user-item { background-color: transparent; padding: 8px; }
 
@@ -244,4 +231,3 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 .graph-toggle .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
 .graph-toggle input:checked + .slider { background-color: var(--primary-color); }
 .graph-toggle input:checked + .slider:before { transform: translateX(18px); }
-
