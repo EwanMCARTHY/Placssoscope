@@ -9,6 +9,7 @@ async function loadFriendData() {
     loadFriendRequests();
     loadFriendsList();
     loadFriendSuggestions();
+    loadMutualFriendSuggestions(); // <-- On ajoute l'appel à la nouvelle fonction
     updateNotificationDot();
 }
 
@@ -36,7 +37,7 @@ async function loadFriendRequests() {
         list.innerHTML += `
             <div class="user-item">
                 <img src="${req.profile_picture || 'assets/default-avatar.png'}" class="user-item-avatar">
-                <div class="user-item-info">${req.username}</div>
+                <div class="user-item-info"><strong>${req.username}</strong></div>
                 <div class="user-item-actions">
                     <button class="btn-icon accept" data-id="${req.friendship_id}"><i class="material-icons">check</i></button>
                     <button class="btn-icon decline" data-id="${req.friendship_id}"><i class="material-icons">close</i></button>
@@ -59,7 +60,7 @@ async function loadFriendsList() {
         item.dataset.friend = JSON.stringify(friend);
         item.innerHTML = `
             <img src="${friend.profile_picture || 'assets/default-avatar.png'}" class="user-item-avatar">
-            <div class="user-item-info">${friend.username}</div>
+            <div class="user-item-info"><strong>${friend.username}</strong></div>
             <div class="user-item-actions">
                 <button class="btn-icon remove-friend" data-id="${friend.friendship_id}"><i class="material-icons">person_remove</i></button>
             </div>`;
@@ -70,20 +71,54 @@ async function loadFriendsList() {
     });
 }
 
+// NOUVELLE FONCTION
+async function loadMutualFriendSuggestions() {
+    const list = document.getElementById('mutual-friend-suggestions-list');
+    list.innerHTML = '';
+    try {
+        const response = await fetch('api/get_mutual_friend_suggestions.php');
+        const suggestions = await response.json();
+        
+        if (suggestions.length === 0) {
+            list.parentElement.style.display = 'none'; // Cache le conteneur s'il n'y a rien
+            return;
+        }
+
+        list.parentElement.style.display = 'block';
+        suggestions.forEach(user => {
+            const mutualText = user.mutual_friends > 1 ? `${user.mutual_friends} amis en commun` : `1 ami en commun`;
+            list.innerHTML += `
+                <div class="user-item" id="suggestion-${user.id}">
+                    <img src="${user.profile_picture || 'assets/default-avatar.png'}" class="user-item-avatar">
+                    <div class="user-item-info">
+                        <strong>${user.username}</strong>
+                        <small>${mutualText}</small>
+                    </div>
+                    <div class="user-item-actions">
+                        <button class="btn-icon add-friend" data-id="${user.id}"><i class="material-icons">person_add</i></button>
+                    </div>
+                </div>`;
+        });
+    } catch (error) {
+        console.error('Erreur lors du chargement des suggestions mutuelles:', error);
+        list.parentElement.style.display = 'none';
+    }
+}
+
 async function loadFriendSuggestions() {
     const list = document.getElementById('friend-suggestions-list');
     list.innerHTML = '';
     const suggestions = await (await fetch('api/get_friend_suggestions.php')).json();
     if (suggestions.length === 0) {
-        document.querySelector('.suggestions-container').style.display = 'none';
+        list.parentElement.style.display = 'none';
         return;
     }
-    document.querySelector('.suggestions-container').style.display = 'block';
+    list.parentElement.style.display = 'block';
     suggestions.forEach(user => {
         list.innerHTML += `
             <div class="user-item" id="suggestion-${user.id}">
                 <img src="${user.profile_picture || 'assets/default-avatar.png'}" class="user-item-avatar">
-                <div class="user-item-info">${user.username}</div>
+                <div class="user-item-info"><strong>${user.username}</strong></div>
                 <div class="user-item-actions">
                     <button class="btn-icon add-friend" data-id="${user.id}"><i class="material-icons">person_add</i></button>
                 </div>
@@ -103,7 +138,7 @@ async function searchUsers(query) {
         resultsContainer.innerHTML += `
             <div class="user-item">
                 <img src="${user.profile_picture || 'assets/default-avatar.png'}" class="user-item-avatar">
-                <div class="user-item-info">${user.username}</div>
+                <div class="user-item-info"><strong>${user.username}</strong></div>
                 <div class="user-item-actions">
                     <button class="btn-icon add-friend" data-id="${user.id}"><i class="material-icons">person_add</i></button>
                 </div>
@@ -140,7 +175,6 @@ async function openSharedEvening(date) {
 
     const { my_scores, friend_scores } = await (await fetch(`api/get_evening_scores.php?friend_id=${currentlyViewedFriend.user_id}&date=${date}`)).json();
     
-    // Afficher le graphique
     const chartContext = document.getElementById('shared-scores-chart-container').getContext('2d');
     if (sharedScoresChart) sharedScoresChart.destroy();
     const getTime = (dateStr) => {
@@ -165,7 +199,6 @@ export function setupFriends() {
         loadFriendData();
     });
     
-    // Navigation par onglets
     document.querySelectorAll('.tab-link').forEach(tab => {
         tab.addEventListener('click', (e) => {
             document.querySelectorAll('.tab-link, .tab-content').forEach(el => el.classList.remove('active'));
@@ -174,7 +207,6 @@ export function setupFriends() {
         });
     });
 
-    // Actions sur les listes
     document.getElementById('friend-requests-list').addEventListener('click', async e => {
         const btn = e.target.closest('.btn-icon');
         if (!btn) return;
@@ -197,20 +229,19 @@ export function setupFriends() {
             btn.disabled = true;
             await fetch('api/send_friend_request.php', { method: 'POST', body: JSON.stringify({ recipient_id: btn.dataset.id }) });
             alert('Demande envoyée !');
-            const suggestionItem = document.getElementById(`suggestion-${btn.dataset.id}`);
-            if(suggestionItem) suggestionItem.remove();
+            const itemToRemove = btn.closest('.user-item');
+            if(itemToRemove) itemToRemove.remove();
         }
     };
+    document.getElementById('mutual-friend-suggestions-list').addEventListener('click', handleAddFriend);
     document.getElementById('friend-suggestions-list').addEventListener('click', handleAddFriend);
     document.getElementById('user-search-results').addEventListener('click', handleAddFriend);
     
-    // Recherche
     document.getElementById('user-search-input').addEventListener('input', e => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => searchUsers(e.target.value), 300);
     });
 
-    // Navigation retour
     document.getElementById('back-to-friends-list-btn').addEventListener('click', () => switchView(document.getElementById('friends-view')));
     document.getElementById('back-to-friend-profile-btn').addEventListener('click', () => {
         if (currentlyViewedFriend) openFriendProfile(currentlyViewedFriend);
