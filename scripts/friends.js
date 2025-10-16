@@ -5,6 +5,29 @@ let currentlyViewedFriend = null;
 let sharedScoresChart;
 let searchTimeout;
 
+// --- FONCTION UTILITAIRE POUR LE GRAPHIQUE ---
+/**
+ * Calcule les bornes minimales et maximales pour l'axe X (temps) d'un graphique.
+ * @param {Array} datasets Les ensembles de données du graphique.
+ * @returns {{min: number, max: number}} Les valeurs min et max pour l'axe.
+ */
+function calculateXAxisBounds(datasets) {
+    const allPoints = datasets.flatMap(ds => ds.data);
+    if (allPoints.length === 0) {
+        // Retourne une plage par défaut si aucune donnée n'est disponible
+        return { min: 18, max: 34 };
+    }
+    const minTime = Math.min(...allPoints.map(p => p.x));
+    const maxTime = Math.max(...allPoints.map(p => p.x));
+    
+    // Ajoute une heure de marge avant et après pour une meilleure lisibilité
+    return {
+        min: Math.floor(minTime) - 1,
+        max: Math.ceil(maxTime) + 1
+    };
+}
+
+
 async function loadFriendData() {
     loadFriendRequests();
     loadFriendsList();
@@ -151,11 +174,10 @@ async function openFriendProfile(friend) {
     document.getElementById('friend-profile-username').textContent = friend.username;
     document.getElementById('friend-profile-pic').src = friend.profile_picture || 'assets/default-avatar.png';
     
-    // ON AJOUTE LA LOGIQUE POUR LA DESCRIPTION ICI
     const descriptionEl = document.getElementById('friend-profile-description-text');
     if (friend.description && friend.description.trim() !== "") {
         descriptionEl.textContent = friend.description;
-        descriptionEl.style.fontStyle = 'normal'; // On retire l'italique si une description existe
+        descriptionEl.style.fontStyle = 'normal';
     } else {
         descriptionEl.textContent = 'Aucune description.';
         descriptionEl.style.fontStyle = 'italic';
@@ -187,19 +209,52 @@ async function openSharedEvening(date) {
     
     const chartContext = document.getElementById('shared-scores-chart-container').getContext('2d');
     if (sharedScoresChart) sharedScoresChart.destroy();
+
     const getTime = (dateStr) => {
         const d = new Date(dateStr);
-        return d.getHours() < 10 ? d.getHours() + 24 + d.getMinutes() / 60 : d.getHours() + d.getMinutes() / 60;
+        let timeValue = d.getHours() + d.getMinutes() / 60;
+        if (d.getHours() < 10) timeValue += 24; // Gérer les soirées qui durent après minuit
+        return timeValue;
     };
+
+    const myDataset = { label: 'Moi', data: my_scores.map(s => ({ x: getTime(s.created_at), y: parseFloat(s.score_value) })), borderColor: '#9333ea', tension: 0.2 };
+    const friendDataset = { label: currentlyViewedFriend.username, data: friend_scores.map(s => ({ x: getTime(s.created_at), y: parseFloat(s.score_value) })), borderColor: '#03dac6', tension: 0.2 };
+
+    // *** LA CORRECTION EST ICI ***
+    // On calcule les bornes dynamiquement avant de créer le graphique
+    const { min, max } = calculateXAxisBounds([myDataset, friendDataset]);
+
     sharedScoresChart = new Chart(chartContext, {
         type: 'line',
         data: {
-            datasets: [
-                { label: 'Moi', data: my_scores.map(s => ({ x: getTime(s.created_at), y: s.score_value })), borderColor: '#9333ea', tension: 0.2 },
-                { label: currentlyViewedFriend.username, data: friend_scores.map(s => ({ x: getTime(s.created_at), y: s.score_value })), borderColor: '#03dac6', tension: 0.2 }
-            ]
+            datasets: [myDataset, friendDataset]
         },
-        options: { /* ... options du graphique ... */ }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    min: min, // On utilise la borne minimale calculée
+                    max: max, // On utilise la borne maximale calculée
+                    ticks: {
+                        color: '#ccc',
+                        stepSize: 2, // Affiche une graduation toutes les 2 heures
+                        callback: (value) => `${String(Math.floor(value) % 24).padStart(2, '0')}:00`
+                    },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 10,
+                    ticks: { color: '#ccc' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#ccc' } }
+            }
+        }
     });
 }
 
