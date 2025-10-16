@@ -1,17 +1,16 @@
 // scripts/auth.js
 import { switchView } from './ui.js';
 
-// --- Fonctions internes ---
-
 async function checkSession() {
     try {
         const response = await fetch('api/check_session.php');
         if (response.ok) {
             const result = await response.json();
             if (result.success) {
-                return {
+                return { // On retourne toutes les données
                     username: result.username,
-                    profile_picture: result.profile_picture
+                    profile_picture: result.profile_picture,
+                    description: result.description
                 };
             }
         }
@@ -28,7 +27,6 @@ async function handleAuth(event) {
     const password = document.getElementById('password').value;
     const remember = document.getElementById('remember-me').checked;
     const endpoint = isLoginMode ? 'api/login.php' : 'api/register.php';
-
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -42,9 +40,8 @@ async function handleAuth(event) {
             throw new Error(result.error || 'Une erreur est survenue.');
         }
     } catch (error) {
-        const errorMessage = document.getElementById('error-message');
-        errorMessage.textContent = error.message;
-        errorMessage.style.display = 'block';
+        document.getElementById('error-message').textContent = error.message;
+        document.getElementById('error-message').style.display = 'block';
     }
 }
 
@@ -58,15 +55,12 @@ function switchAuthMode() {
     document.getElementById('auth-form').reset();
 }
 
-// --- Fonctions exportées ---
-
 export async function logout() {
     await fetch('api/logout.php');
     document.location.reload();
 }
 
 export function setupAuth() {
-    // Cette fonction ne configure plus que le formulaire de connexion/inscription
     document.getElementById('switch-auth-btn').addEventListener('click', switchAuthMode);
     document.getElementById('auth-form').addEventListener('submit', handleAuth);
     return checkSession();

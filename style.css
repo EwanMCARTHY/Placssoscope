@@ -247,3 +247,52 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 .graph-toggle .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
 .graph-toggle input:checked + .slider { background-color: var(--primary-color); }
 .graph-toggle input:checked + .slider:before { transform: translateX(18px); }
+
+/* ==========================================================================
+   STYLES POUR LA DESCRIPTION DU PROFIL
+   ========================================================================== */
+.profile-description-section {
+    padding: 16px 24px;
+}
+
+#description-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+#profile-description-text {
+    flex-grow: 1;
+    font-style: italic;
+    color: var(--on-surface-color);
+    text-align: left;
+    white-space: pre-wrap; /* Pour respecter les sauts de ligne */
+}
+
+#profile-description-textarea {
+    margin-bottom: 16px;
+    height: 100px;
+    resize: vertical;
+    text-align: left;
+}
+
+.description-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: flex-end;
+}
+
+.description-actions .btn {
+    width: auto;
+    padding: 10px 20px;
+    margin: 0;
+}
+
+#friend-profile-description-text {
+    text-align: center;
+    width: 100%;
+    font-style: italic;
+    color: var(--on-surface-color);
+    white-space: pre-wrap;
+}

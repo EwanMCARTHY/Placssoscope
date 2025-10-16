@@ -21,7 +21,6 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Vue d'authentification -->
         <div id="auth-view" class="view">
             <div class="auth-container">
                 <h2 id="auth-title">Connexion</h2>
@@ -38,7 +37,6 @@
             </div>
         </div>
 
-        <!-- Vue principale -->
         <div id="main-view" class="view">
             <div class="main-header">
                 <button id="info-btn" class="btn-icon" title="Informations"><i class="material-icons">info_outline</i></button>
@@ -62,7 +60,6 @@
             </div>
         </div>
         
-        <!-- Vue historique -->
         <div id="history-view" class="view">
             <div class="history-header">
                 <h2>Historique des scores</h2>
@@ -92,7 +89,6 @@
             </div>
         </div>
 
-        <!-- Vue du profil -->
         <div id="profile-view" class="view">
             <div class="history-header">
                 <h2>Mon Profil</h2>
@@ -107,6 +103,21 @@
                         <button type="submit" id="upload-submit-btn" class="btn btn-primary" style="display: none;">Enregistrer</button>
                     </form>
                 </div>
+                
+                <div class="profile-section profile-description-section">
+                    <div id="description-display">
+                        <p id="profile-description-text">Aucune description.</p>
+                        <button id="edit-description-btn" class="btn-icon" title="Modifier la description"><i class="material-icons">edit</i></button>
+                    </div>
+                    <div id="description-editor" style="display: none;">
+                        <textarea id="profile-description-textarea" class="modal-input" rows="4" placeholder="Écrivez quelque chose sur vous..."></textarea>
+                        <div class="description-actions">
+                            <button id="cancel-description-btn" class="btn btn-secondary">Annuler</button>
+                            <button id="save-description-btn" class="btn btn-primary">Enregistrer</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="accordion">
                     <button class="accordion-header">
                         <span>Changer de nom d'utilisateur</span>
@@ -144,7 +155,6 @@
             </div>
         </div>
 
-        <!-- Vue Amis -->
         <div id="friends-view" class="view">
             <div class="history-header">
                 <h2>Amis</h2>
@@ -167,11 +177,12 @@
                         <input type="search" id="user-search-input" class="modal-input" placeholder="Rechercher un utilisateur...">
                     </div>
                     <div id="user-search-results" class="user-list"></div>
-
+                    
                     <div class="suggestions-container">
                         <h3>Personnes que vous pourriez connaître</h3>
                         <div id="mutual-friend-suggestions-list" class="user-list"></div>
                     </div>
+                    
                     <div class="suggestions-container">
                         <h3>Suggestions</h3>
                         <div id="friend-suggestions-list" class="user-list"></div>
@@ -180,7 +191,6 @@
             </div>
         </div>
         
-        <!-- Vue Profil Ami -->
         <div id="friend-profile-view" class="view">
             <div class="history-header">
                 <h2 id="friend-profile-name">Profil</h2>
@@ -191,6 +201,11 @@
                     <img id="friend-profile-pic" src="assets/default-avatar.png" alt="Photo de profil de l'ami" class="profile-picture">
                     <h3 id="friend-profile-username" style="margin: 8px 0 0 0;"></h3>
                 </div>
+
+                <div class="profile-section profile-description-section">
+                    <p id="friend-profile-description-text">Aucune description.</p>
+                </div>
+
                 <div class="common-evenings-container">
                     <h3>Soirées en commun</h3>
                     <div id="common-evenings-list" class="user-list"></div>
@@ -198,7 +213,6 @@
             </div>
         </div>
 
-        <!-- Vue Soirée Partagée -->
         <div id="shared-evening-view" class="view">
             <div class="history-header">
                 <h2 id="shared-evening-title">Soirée partagée</h2>
@@ -214,7 +228,6 @@
         </div>
     </div>
     
-    <!-- Modales -->
     <div id="info-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Bienvenue dans le Plac’ssographe !</h3>

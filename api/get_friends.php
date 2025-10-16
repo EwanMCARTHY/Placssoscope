@@ -19,14 +19,12 @@ try {
 
     $current_user_id = $_SESSION['user_id'];
 
-    // Requête complexe pour trouver les amis
-    // On doit joindre la table `users` pour obtenir les infos de l'ami,
-    // qui peut être soit user_one_id, soit user_two_id.
     $stmt = $db->prepare(
         "SELECT
             u.id as user_id,
             u.username,
             u.profile_picture,
+            u.description, -- ON AJOUTE LA DESCRIPTION ICI
             f.id as friendship_id
          FROM friendships f
          JOIN users u ON u.id = (CASE WHEN f.user_one_id = :current_user_id THEN f.user_two_id ELSE f.user_one_id END)

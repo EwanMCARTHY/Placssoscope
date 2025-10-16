@@ -9,7 +9,7 @@ async function loadFriendData() {
     loadFriendRequests();
     loadFriendsList();
     loadFriendSuggestions();
-    loadMutualFriendSuggestions(); // <-- On ajoute l'appel à la nouvelle fonction
+    loadMutualFriendSuggestions();
     updateNotificationDot();
 }
 
@@ -71,7 +71,6 @@ async function loadFriendsList() {
     });
 }
 
-// NOUVELLE FONCTION
 async function loadMutualFriendSuggestions() {
     const list = document.getElementById('mutual-friend-suggestions-list');
     list.innerHTML = '';
@@ -80,7 +79,7 @@ async function loadMutualFriendSuggestions() {
         const suggestions = await response.json();
         
         if (suggestions.length === 0) {
-            list.parentElement.style.display = 'none'; // Cache le conteneur s'il n'y a rien
+            list.parentElement.style.display = 'none';
             return;
         }
 
@@ -151,6 +150,17 @@ async function openFriendProfile(friend) {
     document.getElementById('friend-profile-name').textContent = `Profil de ${friend.username}`;
     document.getElementById('friend-profile-username').textContent = friend.username;
     document.getElementById('friend-profile-pic').src = friend.profile_picture || 'assets/default-avatar.png';
+    
+    // ON AJOUTE LA LOGIQUE POUR LA DESCRIPTION ICI
+    const descriptionEl = document.getElementById('friend-profile-description-text');
+    if (friend.description && friend.description.trim() !== "") {
+        descriptionEl.textContent = friend.description;
+        descriptionEl.style.fontStyle = 'normal'; // On retire l'italique si une description existe
+    } else {
+        descriptionEl.textContent = 'Aucune description.';
+        descriptionEl.style.fontStyle = 'italic';
+    }
+
     switchView(document.getElementById('friend-profile-view'));
     
     const list = document.getElementById('common-evenings-list');
