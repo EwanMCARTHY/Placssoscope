@@ -1,32 +1,32 @@
 <?php
-// api/request_password_reset.php
+// api/reset_password.php
 
-// Lignes de débogage : à commenter ou supprimer une fois que tout fonctionne
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// Vérification cruciale du chemin de l'autoload
-$autoloadPath = __DIR__ . '/../vendor/autoload.php';
-if (!file_exists($autoloadPath)) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Fichier autoload manquant. Vérifiez le chemin et l\'installation de Composer.']);
-    exit();
-}
-require $autoloadPath;
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+// CORRECTION : Utilisation d'un chemin absolu pour plus de fiabilité
+require __DIR__ . '/../vendor/autoload.php';
 
 header('Content-Type: application/json');
 $data = json_decode(file_get_contents('php://input'), true);
 
-if (!isset($data['email'])) {
+if (!isset($data['token']) || !isset($data['password'])) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Veuillez fournir une adresse e-mail.']);
+    echo json_encode(['success' => false, 'error' => 'Données manquantes. Veuillez réessayer.']);
+    exit();
+}
+
+$token = $data['token'];
+$newPassword = $data['password'];
+
+if (strlen($newPassword) < 8) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Le mot de passe doit contenir au moins 8 caractères.']);
     exit();
 }
 
 try {
+    // --- Configuration de la base de données ---
     $db_host = 'localhost';
     $db_name = 'u551125034_placssographe';
     $db_user = 'u551125034_contact';
@@ -34,56 +34,45 @@ try {
     $db = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_user, $db_pass);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    $stmt = $db->prepare("SELECT id FROM users WHERE email = :email");
-    $stmt->execute(['email' => $data['email']]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt = $db->prepare("SELECT * FROM password_resets WHERE token = :token");
+    $stmt->execute(['token' => $token]);
+    $resetRequest = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // On ne fait l'envoi que si l'utilisateur existe
-    if ($user) {
-        $token = bin2hex(random_bytes(50));
-        $expires = new DateTime('NOW');
-        $expires->add(new DateInterval('PT1H'));
+    if (!$resetRequest) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Ce jeton de réinitialisation est invalide.']);
+        exit();
+    }
 
-        $stmt = $db->prepare("INSERT INTO password_resets (user_id, token, expires_at) VALUES (:user_id, :token, :expires_at)");
-        $stmt->execute([
-            'user_id' => $user['id'],
-            'token' => $token,
-            'expires_at' => $expires->format('Y-m-d H:i:s')
-        ]);
-
-        $mail = new PHPMailer(true);
-        
-        // --- CONFIGURATION SMTP ---
-        // $mail->SMTPDebug = 2; // Décommentez pour avoir des logs très détaillés de l'envoi
-        $mail->isSMTP();
-        $mail->Host = 'smtp.votreserveur.com'; // Ex: smtp.gmail.com, smtp.ionos.fr
-        $mail->SMTPAuth = true;
-        $mail->Username = 'votre_email@example.com';
-        $mail->Password = 'votre_mot_de_passe_email_ou_application';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = 587;
-        
-        $mail->setFrom('no-reply@placssographe.fr', 'Plac\'ssographe');
-        $mail->addAddress($data['email']);
-        
-        $mail->isHTML(true);
-        $mail->CharSet = 'UTF-8';
-        $mail->Subject = 'Réinitialisation de votre mot de passe';
-        $resetLink = "https://placssographe.fr/index.html?reset_token=" . $token;
-        $mail->Body    = "Bonjour,<br><br>Pour réinitialiser votre mot de passe, veuillez cliquer sur le lien suivant : <a href='{$resetLink}'>Réinitialiser mon mot de passe</a><br><br>Ce lien expirera dans une heure.<br><br>L'équipe Plac'ssographe";
-        
-        $mail->send();
+    $expires = new DateTime($resetRequest['expires_at']);
+    $now = new DateTime();
+    if ($now > $expires) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Ce jeton de réinitialisation a expiré.']);
+        exit();
     }
     
-    // Pour la sécurité, on affiche toujours ce message, que l'email existe ou non.
-    echo json_encode(['success' => true, 'message' => 'Si un compte est associé à cet e-mail, un lien de réinitialisation a été envoyé.']);
+    $userId = $resetRequest['user_id'];
+    $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+    
+    $stmt = $db->prepare("UPDATE users SET password = :password WHERE id = :id");
+    $stmt->execute([
+        'password' => $hashedPassword,
+        'id' => $userId
+    ]);
+
+    $stmt = $db->prepare("DELETE FROM password_resets WHERE token = :token");
+    $stmt->execute(['token' => $token]);
+
+    echo json_encode(['success' => true, 'message' => 'Votre mot de passe a été réinitialisé avec succès.']);
 
 } catch (PDOException $e) {
+    error_log('PDO Error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erreur de base de données.', 'details' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Erreur de connexion au serveur lors de la mise à jour.']);
 } catch (Exception $e) {
+    error_log('Error: ' . $e->getMessage());
     http_response_code(500);
-    // Cette erreur est cruciale pour le débogage de l'email !
-    echo json_encode(['success' => false, 'error' => 'Le service de messagerie a rencontré un problème.', 'details' => $mail->ErrorInfo]);
+    echo json_encode(['success' => false, 'error' => 'Une erreur inattendue est survenue.']);
 }
 ?>
