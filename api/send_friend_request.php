@@ -2,8 +2,10 @@
 session_start();
 header('Content-Type: application/json');
 
-// On inclut notre chargeur manuel correct qui s'occupe de tout.
-require_once __DIR__ . '/../vendor/autoloader.php';
+// --- LA CORRECTION EST ICI ---
+// On utilise le chargeur universel et complet généré par Composer.
+require_once __DIR__ . '/../vendor/autoload.php';
+// --- FIN DE LA CORRECTION ---
 
 use Minishlink\WebPush\WebPush;
 use Minishlink\WebPush\Subscription;
@@ -50,8 +52,8 @@ try {
     if (!empty($subscriptions)) {
         $auth = [
             'VAPID' => [
-                'subject' => 'mailto: <contact@placssographe.fr>', // N'oubliez pas de mettre votre email
-                'publicKey' => 'BIbvLm2QQbMYUcN-hJ4xS-T13vmcVYFvGPMbIVHxKVygy-56wJ73q_TFumpahkN1nHQO_JmSrVWFA9_N9hJJ0Ms',  // Et vos clés VAPID
+                'subject' => 'mailto:contact@placssographe.fr',
+                'publicKey' => 'BIbvLm2QQbMYUcN-hJ4xS-T13vmcVYFvGPMbIVHxKVygy-56wJ73q_TFumpahkN1nHQO_JmSrVWFA9_N9hJJ0Ms',
                 'privateKey' => 'b7NLe2o3577rMeqqlN9EZwVL_AVaWAqtKnQd8fQukAc',
             ],
         ];
@@ -82,8 +84,8 @@ try {
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Erreur de base de données: ' . $e->getMessage()]);
-} catch (Throwable $e) { // Attrape toutes les erreurs, y compris celles de la bibliothèque
+} catch (Throwable $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erreur serveur lors de l\'envoi de la notif: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Erreur serveur lors de la notif: ' . $e->getMessage()]);
 }
 ?>
