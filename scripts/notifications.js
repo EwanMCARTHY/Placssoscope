@@ -52,8 +52,9 @@ async function sendSubscriptionToServer(subscription) {
 
 /**
  * Initialise le processus.
+ * CORRECTION : Le nom de la fonction est maintenant aligné avec ce qui est importé dans main.js
  */
-export function initializePushNotifications() {
+export function initializeNotifications() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         console.warn('Les notifications Push ne sont pas supportées par ce navigateur.');
         return;

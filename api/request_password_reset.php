@@ -4,16 +4,8 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// --- DÉBUT DU DÉBOGAGE ---
-// Tentative d'inclusion manuelle pour contourner les problèmes d'autoloading.
-// Ces chemins supposent que votre structure est /public_html/vendor/phpmailer/phpmailer/
-require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/Exception.php';
-require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/PHPMailer.php';
-require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/SMTP.php';
-// --- FIN DU DÉBOGAGE ---
-
-// On garde l'autoload pour les autres dépendances, au cas où.
-require_once __DIR__ . '/../vendor/autoload.php';
+// Cette ligne fonctionnera maintenant que le vendor/ est correctement installé.
+require __DIR__ . '/../vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -55,7 +47,8 @@ try {
         $mail = new PHPMailer(true);
         
         // --- CONFIGURATION SMTP ---
-        // $mail->SMTPDebug = 2; // Décommentez pour un débogage détaillé
+        // Mettez $mail->SMTPDebug = 2; pour tester si besoin, puis 0 en production.
+        $mail->SMTPDebug = 0;
         $mail->isSMTP();
         $mail->Host = 'smtp.hostinger.com';
         $mail->SMTPAuth = true;
@@ -71,7 +64,7 @@ try {
         $mail->isHTML(true);
         $mail->Subject = 'Réinitialisation de votre mot de passe';
         $resetLink = "https://placssographe.fr/index.html?reset_token=" . $token;
-        $mail->Body    = "Bonjour,<br><br>Pour réinitialiser votre mot de passe, veuillez cliquer sur le lien suivant : <a href='{$resetLink}'>Réinitialiser mon mot de passe</a><br><br>Ce lien expirera dans une heure.<br><br>L'équipe Plac'ssographe";
+        $mail->Body    = "Bonjour,<br><br>Pour réinitialiser votre mot de passe, veuillez cliquer sur le lien suivant : <a href='{$resetLink}'>Réinitialiser mon mot de passe</a><br><br>Ce lien expirera dans une heure.<br><br>Boo(b)°ster 7-138Li224";
         
         $mail->send();
     }
@@ -80,9 +73,11 @@ try {
 
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erreur de base de données.', 'details' => $e->getMessage()]);
+    error_log('PDO Error: ' . $e->getMessage()); // Écrire dans les logs du serveur
+    echo json_encode(['success' => false, 'error' => 'Erreur de base de données.']);
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Le service de messagerie a rencontré un problème.', 'details' => $mail->ErrorInfo]);
+    error_log('Mailer Error: ' . $mail->ErrorInfo); // Écrire dans les logs du serveur
+    echo json_encode(['success' => false, 'error' => 'Le service de messagerie a rencontré un problème.']);
 }
 ?>

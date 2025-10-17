@@ -103,3 +103,14 @@ export function showModal(modal) {
 export function hideModal(modal) {
     if (modal) modal.classList.remove('visible');
 }
+
+/**
+ * Affiche ou masque l'indicateur de chargement.
+ * @param {boolean} isLoading - Si vrai, affiche le loader, sinon le masque.
+ */
+export function showLoader(isLoading) {
+    const loader = document.getElementById('loader');
+    if (loader) {
+        loader.style.display = isLoading ? 'flex' : 'none';
+    }
+}
