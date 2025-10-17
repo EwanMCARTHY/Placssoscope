@@ -109,6 +109,19 @@ function populateChartFilters(dataByDay) {
     });
 }
 
+function calculateXAxisBounds(datasets) {
+    const allPoints = datasets.flatMap(ds => ds.data);
+    if (allPoints.length === 0) {
+        // Vue par défaut pour un graphique vide, par exemple de 18h à 6h du matin
+        return { min: 18, max: 30 };
+    }
+    const minTime = Math.min(...allPoints.map(p => p.x));
+    const maxTime = Math.max(...allPoints.map(p => p.x));
+    
+    // Ajoute une marge à l'axe pour une meilleure lisibilité
+    return { min: Math.floor(minTime) - 1, max: Math.ceil(maxTime) + 1 };
+}
+
 function updateChart(selectedDays) {
     const buildChartDatasets = (data, days) => {
         return days.map((day, index) => {
@@ -116,7 +129,9 @@ function updateChart(selectedDays) {
             const color = `hsl(${(index * 50) % 360}, 70%, 60%)`;
             const getTime = (dateStr) => {
                 const d = new Date(dateStr);
-                return d.getHours() < 10 ? d.getHours() + 24 + d.getMinutes() / 60 : d.getHours() + d.getMinutes() / 60;
+                let timeValue = d.getHours() + d.getMinutes() / 60;
+                if (d.getHours() < 10) timeValue += 24; // Gère les heures du matin (ex: 2h devient 26h)
+                return timeValue;
             };
             return {
                 label: dayData.customName || new Date(day).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
@@ -127,8 +142,12 @@ function updateChart(selectedDays) {
     };
 
     const datasets = buildChartDatasets(allScoresData, selectedDays);
+    const { min, max } = calculateXAxisBounds(datasets); // Calcul dynamique des limites
     const chartContext = document.getElementById('scores-chart-container').getContext('2d');
-    if (scoresChart) scoresChart.destroy();
+    
+    if (scoresChart) {
+        scoresChart.destroy();
+    }
     
     scoresChart = new Chart(chartContext, {
         type: 'line',
@@ -137,7 +156,9 @@ function updateChart(selectedDays) {
             responsive: true, maintainAspectRatio: false,
             scales: {
                 x: {
-                    type: 'linear', min: 18, max: 34, // 18h to 10h morning
+                    type: 'linear',
+                    min: min, // Utilisation de la limite inférieure dynamique
+                    max: max, // Utilisation de la limite supérieure dynamique
                     ticks: { color: '#ccc', stepSize: 2, callback: (v) => `${String(Math.floor(v) % 24).padStart(2, '0')}:00` },
                     grid: { color: 'rgba(255, 255, 255, 0.1)' }
                 },
