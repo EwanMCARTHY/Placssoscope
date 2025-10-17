@@ -1,13 +1,15 @@
 // scripts/auth.js
 import { switchView } from './ui.js';
 
+// --- Fonctions internes ---
+
 async function checkSession() {
     try {
         const response = await fetch('api/check_session.php');
         if (response.ok) {
             const result = await response.json();
             if (result.success) {
-                return { // On retourne toutes les données
+                return {
                     username: result.username,
                     profile_picture: result.profile_picture,
                     description: result.description
@@ -27,6 +29,7 @@ async function handleAuth(event) {
     const password = document.getElementById('password').value;
     const remember = document.getElementById('remember-me').checked;
     const endpoint = isLoginMode ? 'api/login.php' : 'api/register.php';
+
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -55,13 +58,12 @@ function switchAuthMode() {
     document.getElementById('auth-form').reset();
 }
 
-export async function logout() {
-    await fetch('api/logout.php');
-    document.location.reload();
-}
+// --- Fonctions exportées ---
 
 export function setupAuth() {
+    // Configure uniquement les écouteurs du formulaire de connexion
     document.getElementById('switch-auth-btn').addEventListener('click', switchAuthMode);
     document.getElementById('auth-form').addEventListener('submit', handleAuth);
+    // Renvoie la promesse de vérification de session
     return checkSession();
 }
