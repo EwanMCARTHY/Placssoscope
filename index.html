@@ -30,10 +30,35 @@
                     <input type="password" id="password" class="modal-input" placeholder="Mot de passe" required autocomplete="current-password">
                     <div class="form-extra-options">
                         <label for="remember-me"><input type="checkbox" id="remember-me" checked> Se souvenir de moi</label>
+                        <button type="button" id="forgot-password-btn" class="btn-link">Mot de passe oublié ?</button>
                     </div>
                     <button type="submit" id="auth-submit-btn" class="btn btn-primary">Se connecter</button>
                 </form>
                 <button id="switch-auth-btn" class="btn-link">Pas de compte ? S'inscrire</button>
+            </div>
+        </div>
+
+        <div id="forgot-password-view" class="view">
+            <div class="auth-container">
+                <h2>Réinitialiser le mot de passe</h2>
+                <p>Entrez votre e-mail pour recevoir un lien de réinitialisation.</p>
+                <div id="forgot-message" class="error-message" style="display: none;"></div>
+                <form id="forgot-password-form">
+                    <input type="email" id="email-forgot" class="modal-input" placeholder="Votre adresse e-mail" required autocomplete="email">
+                    <button type="submit" class="btn btn-primary">Envoyer</button>
+                </form>
+                <button id="back-to-login-btn" class="btn-link">Retour à la connexion</button>
+            </div>
+        </div>
+
+        <div id="reset-password-view" class="view">
+             <div class="auth-container">
+                <h2>Nouveau mot de passe</h2>
+                <div id="reset-message" class="error-message" style="display: none;"></div>
+                <form id="reset-password-form">
+                    <input type="password" id="new-password-reset" class="modal-input" placeholder="Nouveau mot de passe" required autocomplete="new-password">
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </form>
             </div>
         </div>
 
