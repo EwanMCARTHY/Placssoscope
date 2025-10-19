@@ -50,7 +50,7 @@ if (!in_array($fileType, $allowedTypes)) {
 $uploadDir = '../uploads/';
 $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
 // Crée un nom de fichier unique pour éviter les conflits
-$newFileName = 'user_' . $_SESSION['user_id'] . '_' . time() . '.' . $extension;
+$newFileName = 'user_' . $_SESSION['user_id'] . '_' . time() . '.' . strtolower($extension);
 $destination = $uploadDir . $newFileName;
 
 try {
@@ -77,7 +77,9 @@ try {
         $stmt = $db->prepare("UPDATE users SET profile_picture = :path WHERE id = :id");
         $stmt->execute(['path' => $filePathInDb, 'id' => $_SESSION['user_id']]);
 
-        echo json_encode(['success' => true, 'filePath' => $filePathInDb]);
+        // *** CORRECTION APPLIQUÉE ICI ***
+        // On renvoie 'filepath' en minuscules pour correspondre au JavaScript
+        echo json_encode(['success' => true, 'filepath' => $filePathInDb]);
     } else {
         throw new Exception('Impossible de déplacer le fichier uploadé.');
     }

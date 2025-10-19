@@ -2,13 +2,10 @@
 import { switchView } from './ui.js';
 
 export function setupProfile() {
-    const profileView = document.getElementById('profile-view');
     const changeUsernameForm = document.getElementById('change-username-form');
     const changePasswordForm = document.getElementById('change-password-form');
     const deleteAccountBtn = document.getElementById('delete-account-btn');
-    const uploadPictureForm = document.getElementById('upload-picture-form');
     const pictureInput = document.getElementById('picture-input');
-    const uploadSubmitBtn = document.getElementById('upload-submit-btn');
     const profilePicDisplay = document.getElementById('profile-pic-display');
     const descriptionDisplay = document.getElementById('description-display');
     const descriptionEditor = document.getElementById('description-editor');
@@ -18,23 +15,32 @@ export function setupProfile() {
     const descriptionText = document.getElementById('profile-description-text');
     const descriptionTextarea = document.getElementById('profile-description-textarea');
 
-    async function handlePictureUpload(event) {
-        event.preventDefault();
+    // La fonction est maintenant appelée directement par l'événement 'change'
+    async function uploadProfilePicture(file) {
         const formData = new FormData();
-        if (pictureInput.files.length === 0) return;
-        formData.append('profile_picture', pictureInput.files[0]);
+        formData.append('profile_picture', file);
 
         try {
             const response = await fetch('api/upload_picture.php', { method: 'POST', body: formData });
             const result = await response.json();
-            if (response.ok && result.success) {
+            
+            if (response.ok && result.success && result.filepath) {
+                const newPicUrl = result.filepath + '?t=' + new Date().getTime();
+                
+                profilePicDisplay.src = newPicUrl;
+                
+                const headerProfileIcon = document.querySelector('#profile-btn .profile-picture-icon');
+                if(headerProfileIcon) {
+                    headerProfileIcon.src = newPicUrl;
+                }
+                
                 alert('Photo de profil mise à jour !');
-                window.location.reload(); // Recharger pour voir les changements partout
+
             } else {
-                throw new Error(result.error || "Une erreur s'est produite.");
+                throw new Error(result.error || "La réponse du serveur est invalide.");
             }
         } catch (error) {
-            alert(`Erreur : ${error.message}`);
+            alert(`Erreur lors de la mise à jour : ${error.message}`);
         }
     }
 
@@ -124,14 +130,16 @@ export function setupProfile() {
         }
     }
 
-    // Écouteurs d'événements
+    // --- Écouteurs d'événements ---
     changeUsernameForm.addEventListener('submit', handleChangeUsername);
     changePasswordForm.addEventListener('submit', handleChangePassword);
     deleteAccountBtn.addEventListener('click', handleDeleteAccount);
-    uploadPictureForm.addEventListener('submit', handlePictureUpload);
-    pictureInput.addEventListener('change', () => {
-        if (pictureInput.files.length > 0) {
-            uploadSubmitBtn.style.display = 'block';
+    
+    // On écoute le changement sur l'input de fichier
+    pictureInput.addEventListener('change', (event) => {
+        // S'il y a un fichier, on lance l'upload
+        if (event.target.files.length > 0) {
+            uploadProfilePicture(event.target.files[0]);
         }
     });
 
@@ -148,7 +156,6 @@ export function setupProfile() {
     
     saveDescriptionBtn.addEventListener('click', saveDescription);
     
-    // Logique de l'accordéon
     const accordionHeaders = document.querySelectorAll('.accordion-header');
     accordionHeaders.forEach(header => {
         header.addEventListener('click', () => {
