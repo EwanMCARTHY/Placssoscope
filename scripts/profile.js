@@ -34,12 +34,13 @@ export function setupProfile() {
                     headerProfileIcon.src = newPicUrl;
                 }
                 
-                alert('Photo de profil mise à jour !');
+                // La ligne d'alerte a été supprimée ici.
 
             } else {
                 throw new Error(result.error || "La réponse du serveur est invalide.");
             }
         } catch (error) {
+            // On garde l'alerte en cas d'erreur pour informer l'utilisateur
             alert(`Erreur lors de la mise à jour : ${error.message}`);
         }
     }

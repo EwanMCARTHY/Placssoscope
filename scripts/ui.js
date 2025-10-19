@@ -38,7 +38,11 @@ export function hideModal(modal) {
  */
 export async function checkSession() {
     try {
-        const response = await fetch('api/check_session.php');
+        // *** CORRECTION APPLIQUÉE ICI ***
+        // On ajoute un paramètre unique pour forcer le navigateur à ne pas utiliser
+        // une réponse mise en cache et à toujours demander les données à jour.
+        const response = await fetch('api/check_session.php?t=' + new Date().getTime());
+        
         if (response.ok) {
             const result = await response.json();
             if (result.success) {
@@ -63,26 +67,20 @@ export async function checkSession() {
 function updateUserDataInUI(user) {
     if (!user) return;
 
-    // Message de bienvenue
     const welcomeMessage = document.getElementById('welcome-message');
     if (welcomeMessage) {
         welcomeMessage.textContent = `Bienvenue, ${user.username} !`;
     }
 
-    // *** CORRECTION FINALE : Affichage de l'icône de profil ***
     const profileBtn = document.getElementById('profile-btn');
     if (profileBtn) {
-        const picUrl = user.profile_picture || 'assets/default-avatar.png';
-        
-        // On remplace l'icône Material Icon par une balise <img>
-        // C'est la méthode la plus fiable et elle fonctionnera avec le nouveau CSS.
+        const picUrl = (user.profile_picture || 'assets/default-avatar.png') + '?t=' + new Date().getTime();
         profileBtn.innerHTML = `<img src="${picUrl}" alt="Mon Profil" class="profile-picture-icon">`;
     }
 
-    // Photo de profil et description dans la vue de profil
     const profilePicDisplay = document.getElementById('profile-pic-display');
     if (profilePicDisplay) {
-        profilePicDisplay.src = user.profile_picture || 'assets/default-avatar.png';
+        profilePicDisplay.src = (user.profile_picture || 'assets/default-avatar.png') + '?t=' + new Date().getTime();
     }
     const profileDescriptionText = document.getElementById('profile-description-text');
     if (profileDescriptionText) {
@@ -108,20 +106,16 @@ function setupGlobalEventListeners() {
     const mainView = document.getElementById('main-view');
     const infoModal = document.getElementById('info-modal');
 
-    // Navigation du header
     document.getElementById('profile-btn')?.addEventListener('click', () => switchView(document.getElementById('profile-view')));
     document.getElementById('friends-btn')?.addEventListener('click', () => switchView(document.getElementById('friends-view')));
 
-    // Bouton d'information
     document.getElementById('info-btn')?.addEventListener('click', () => showModal(infoModal));
     document.getElementById('close-info-modal-btn')?.addEventListener('click', () => hideModal(infoModal));
     
-    // Boutons "Retour"
     document.getElementById('back-to-main-btn')?.addEventListener('click', () => switchView(mainView));
     document.getElementById('back-to-main-from-profile-btn')?.addEventListener('click', () => switchView(mainView));
     document.getElementById('back-to-main-from-friends-btn')?.addEventListener('click', () => switchView(mainView));
 
-    // Déconnexion
     document.getElementById('logout-btn')?.addEventListener('click', async () => {
         try {
             await fetch('api/logout.php');
