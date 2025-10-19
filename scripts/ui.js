@@ -1,92 +1,20 @@
 // scripts/ui.js
 
-let currentUser = null;
+let currentView = null;
 
 /**
  * Affiche une vue spécifique et masque les autres.
  * @param {HTMLElement} viewToShow - L'élément de la vue à afficher.
- * @param {boolean} [force=false] - Si vrai, force l'affichage même si une autre vue est active.
  */
-export function switchView(viewToShow, force = false) {
-    const views = document.querySelectorAll('.view');
-    if (!force) {
-        let alreadyActive = false;
-        views.forEach(v => {
-            if (v === viewToShow && v.classList.contains('active-view')) {
-                alreadyActive = true;
-            }
-        });
-        if (alreadyActive) return;
+export function switchView(viewToShow) {
+    if (currentView) {
+        currentView.classList.remove('active-view');
     }
-    views.forEach(v => v.classList.remove('active-view'));
     if (viewToShow) {
         viewToShow.classList.add('active-view');
     }
+    currentView = viewToShow;
 }
-
-/**
- * Vérifie la session PHP pour voir si un utilisateur est connecté.
- * @returns {Promise<boolean>} - Vrai si une session est active, sinon faux.
- */
-export async function checkSession() {
-    try {
-        const response = await fetch('api/check_session.php');
-        if (response.ok) {
-            const result = await response.json();
-            if (result.success) {
-                currentUser = {
-                    username: result.username,
-                    profile_picture: result.profile_picture
-                };
-                return true; // Session active
-            }
-        }
-        // Afficher la vue de connexion si la session n'est pas valide
-        switchView(document.getElementById('auth-view'), true);
-        return false;
-    } catch (error) {
-        console.error("Erreur lors de la vérification de la session:", error);
-        switchView(document.getElementById('auth-view'), true);
-        return false; // Pas de session active
-    }
-}
-
-/**
- * Initialise l'interface principale de l'application une fois l'utilisateur connecté.
- */
-export function initializeApp() {
-    if (currentUser) {
-        document.getElementById('welcome-message').textContent = `Bienvenue, ${currentUser.username} !`;
-        const picUrl = currentUser.profile_picture || 'assets/default-avatar.png';
-        
-        // Mettre à jour la photo de profil dans la vue de profil
-        const profilePicDisplay = document.getElementById('profile-pic-display');
-        if(profilePicDisplay) profilePicDisplay.src = picUrl;
-        
-        let headerIcon = document.querySelector('.header-actions .profile-picture-icon');
-        if (!headerIcon) {
-            headerIcon = document.createElement('img');
-            headerIcon.className = 'profile-picture-icon';
-            headerIcon.title = 'Mon Profil';
-            headerIcon.addEventListener('click', () => switchView(document.getElementById('profile-view')));
-            document.querySelector('.header-actions').prepend(headerIcon);
-        }
-        headerIcon.src = picUrl;
-    }
-    switchView(document.getElementById('main-view'));
-
-    // Écouteurs d'événements généraux de l'UI
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-        await fetch('api/logout.php');
-        window.location.reload();
-    });
-
-    // Navigation principale
-    document.getElementById('back-to-main-btn')?.addEventListener('click', () => switchView(document.getElementById('main-view')));
-    document.getElementById('back-to-main-from-profile-btn')?.addEventListener('click', () => switchView(document.getElementById('main-view')));
-    document.getElementById('back-to-main-from-friends-btn')?.addEventListener('click', () => switchView(document.getElementById('main-view')));
-}
-
 
 /**
  * Affiche une modale.
@@ -102,6 +30,92 @@ export function showModal(modal) {
  */
 export function hideModal(modal) {
     if (modal) modal.classList.remove('visible');
+}
+
+/**
+ * Vérifie la session et retourne les données de l'utilisateur si connecté.
+ * @returns {Promise<object|null>} - Un objet utilisateur ou null.
+ */
+export async function checkSession() {
+    try {
+        const response = await fetch('api/check_session.php');
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                return {
+                    username: result.username,
+                    profile_picture: result.profile_picture,
+                    description: result.description
+                };
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error("Erreur lors de la vérification de la session:", error);
+        return null;
+    }
+}
+
+/**
+ * Met à jour les éléments de l'interface utilisateur avec les données de l'utilisateur.
+ * @param {object} user - L'objet contenant les données de l'utilisateur.
+ */
+function updateUserDataInUI(user) {
+    if (!user) return;
+
+    const welcomeMessage = document.getElementById('welcome-message');
+    if (welcomeMessage) {
+        welcomeMessage.textContent = `Bienvenue, ${user.username} !`;
+    }
+
+    const picUrl = user.profile_picture || 'assets/default-avatar.png';
+    const headerIcon = document.getElementById('profile-btn');
+    if (headerIcon) {
+        headerIcon.innerHTML = `<img src="${picUrl}" alt="Mon Profil" class="profile-picture-icon">`;
+    }
+
+    const profilePicDisplay = document.getElementById('profile-pic-display');
+    if (profilePicDisplay) {
+        profilePicDisplay.src = picUrl;
+    }
+    const profileDescriptionText = document.getElementById('profile-description-text');
+    if (profileDescriptionText) {
+        profileDescriptionText.textContent = user.description || 'Aucune description.';
+    }
+}
+
+/**
+ * Initialise l'interface principale et tous les écouteurs d'événements globaux.
+ * @param {object} user - L'objet utilisateur provenant de checkSession.
+ */
+export function initializeApp(user) {
+    updateUserDataInUI(user);
+    setupGlobalEventListeners();
+    switchView(document.getElementById('main-view'));
+}
+
+/**
+ * Configure tous les écouteurs d'événements globaux.
+ */
+function setupGlobalEventListeners() {
+    const mainView = document.getElementById('main-view');
+
+    document.getElementById('profile-btn').addEventListener('click', () => switchView(document.getElementById('profile-view')));
+    document.getElementById('friends-btn').addEventListener('click', () => switchView(document.getElementById('friends-view')));
+
+    document.getElementById('back-to-main-btn')?.addEventListener('click', () => switchView(mainView));
+    document.getElementById('back-to-main-from-profile-btn')?.addEventListener('click', () => switchView(mainView));
+    document.getElementById('back-to-main-from-friends-btn')?.addEventListener('click', () => switchView(mainView));
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        try {
+            await fetch('api/logout.php');
+        } catch (error) {
+            console.error('Erreur lors de la déconnexion:', error);
+        } finally {
+            window.location.reload();
+        }
+    });
 }
 
 /**

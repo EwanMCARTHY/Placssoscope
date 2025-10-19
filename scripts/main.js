@@ -1,46 +1,37 @@
+// scripts/main.js
 import { setupAuth } from './auth.js';
 import { setupScores } from './scores.js';
 import { setupFriends } from './friends.js';
 import { setupProfile } from './profile.js';
-import { switchView, showLoader } from './ui.js';
-import { initializeNotifications } from './notifications.js';
+import { initializeApp, checkSession, switchView, showLoader } from './ui.js';
+import { initializeNotifications, registerServiceWorker } from './notifications.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const authView = document.getElementById('auth-view');
-    const mainView = document.getElementById('main-view');
-
-    // On initialise le drapeau à "faux".
-    window.isResettingPassword = false;
-    
-    // setupAuth() va potentiellement passer le drapeau à "vrai".
-    setupAuth();
-    
-    // *** CORRECTION CLÉ ***
-    // On vérifie le drapeau au lieu de l'URL.
-    if (window.isResettingPassword) {
-        showLoader(false);
-        // On arrête tout, le formulaire de reset est déjà affiché.
-        return; 
+    // Gère le cas spécial de la réinitialisation du mot de passe
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('reset_token')) {
+        setupAuth(); // La fonction setupAuth gère l'affichage de la vue de réinitialisation
+        return; // On arrête l'exécution ici
     }
 
-    // Le code ci-dessous ne s'exécutera que si on n'est PAS en train de réinitialiser le mot de passe.
-    try {
-        showLoader(true);
-        const response = await fetch('api/check_session.php');
-        if (!response.ok) {
-            throw new Error('Non authentifié');
-        }
-        const user = await response.json();
+    // Processus de démarrage normal
+    const user = await checkSession();
 
-        switchView(mainView);
+    if (user) {
+        // 1. Initialiser l'application principale et les écouteurs globaux
+        initializeApp(user);
+
+        // 2. Enregistrer le Service Worker et initialiser les notifications
+        await registerServiceWorker();
         initializeNotifications();
+
+        // 3. Configurer les modules spécifiques (scores, amis, profil)
         setupScores(user);
         setupFriends(user);
         setupProfile(user);
-
-    } catch (error) {
-        switchView(authView);
-    } finally {
-        showLoader(false);
+    } else {
+        // Si aucun utilisateur n'est connecté, configurer et afficher la vue d'authentification
+        setupAuth();
+        switchView(document.getElementById('auth-view'));
     }
 });

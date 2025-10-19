@@ -125,7 +125,6 @@ export function setupProfile() {
     }
 
     // Écouteurs d'événements
-    document.getElementById('profile-btn').addEventListener('click', () => switchView(profileView));
     changeUsernameForm.addEventListener('submit', handleChangeUsername);
     changePasswordForm.addEventListener('submit', handleChangePassword);
     deleteAccountBtn.addEventListener('click', handleDeleteAccount);
