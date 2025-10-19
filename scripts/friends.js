@@ -1,11 +1,87 @@
 // scripts/friends.js
 import { switchView } from './ui.js';
 
+// On garde une référence au graphique pour pouvoir le détruire et le recréer
+let sharedScoresChart = null;
+
+/**
+ * Calcule les limites de l'axe des X pour une meilleure lisibilité.
+ */
+function calculateXAxisBounds(datasets) {
+    const allPoints = datasets.flatMap(ds => ds.data);
+    if (allPoints.length === 0) {
+        return { min: 18, max: 30 }; // Vue par défaut de 18h à 6h
+    }
+    const minTime = Math.min(...allPoints.map(p => p.x));
+    const maxTime = Math.max(...allPoints.map(p => p.x));
+    return { min: Math.floor(minTime) - 1, max: Math.ceil(maxTime) + 1 };
+}
+
+/**
+ * Dessine ou met à jour le graphique des scores partagés.
+ * Cette version est compatible avec votre script get_evening_scores.php
+ */
+function drawSharedEveningChart(scoresData, friendUsername) {
+    const datasets = [];
+    const getTime = (dateStr) => {
+        const d = new Date(dateStr);
+        let timeValue = d.getHours() + d.getMinutes() / 60;
+        if (d.getHours() < 10) timeValue += 24;
+        return timeValue;
+    };
+
+    // Création du dataset pour l'utilisateur actuel (my_scores)
+    if (scoresData.my_scores) {
+        datasets.push({
+            label: 'Moi',
+            data: scoresData.my_scores.map(s => ({ x: getTime(s.created_at), y: parseFloat(s.score_value) })).sort((a, b) => a.x - b.x),
+            borderColor: 'rgba(147, 51, 234, 1)',
+            backgroundColor: 'rgba(147, 51, 234, 0.2)',
+            tension: 0.2,
+        });
+    }
+
+    // Création du dataset pour l'ami (friend_scores)
+    if (scoresData.friend_scores) {
+        datasets.push({
+            label: friendUsername || 'Ami',
+            data: scoresData.friend_scores.map(s => ({ x: getTime(s.created_at), y: parseFloat(s.score_value) })).sort((a, b) => a.x - b.x),
+            borderColor: 'rgba(3, 218, 198, 1)',
+            backgroundColor: 'rgba(3, 218, 198, 0.2)',
+            tension: 0.2,
+        });
+    }
+
+    const { min, max } = calculateXAxisBounds(datasets);
+    const chartContext = document.getElementById('shared-scores-chart-container').getContext('2d');
+    
+    if (sharedScoresChart) {
+        sharedScoresChart.destroy();
+    }
+    
+    sharedScoresChart = new Chart(chartContext, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    min: min,
+                    max: max,
+                    ticks: { color: '#ccc', stepSize: 2, callback: (v) => `${String(Math.floor(v) % 24).padStart(2, '0')}:00` },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                y: { beginAtZero: true, max: 10, ticks: { color: '#ccc', stepSize: 1 }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
+            },
+            plugins: { legend: { labels: { color: '#ccc' } } }
+        }
+    });
+}
+
 export function setupFriends() {
     const friendsView = document.getElementById('friends-view');
     const friendsBtn = document.getElementById('friends-btn');
-    const backToMainFromFriendsBtn = document.getElementById('back-to-main-from-friends-btn');
-
     const friendProfileView = document.getElementById('friend-profile-view');
     const backToFriendsListBtn = document.getElementById('back-to-friends-list-btn');
     const friendProfileName = document.getElementById('friend-profile-name');
@@ -13,16 +89,14 @@ export function setupFriends() {
     const friendProfileUsername = document.getElementById('friend-profile-username');
     const friendProfileDescription = document.getElementById('friend-profile-description-text');
     const commonEveningsList = document.getElementById('common-evenings-list');
-
     const sharedEveningView = document.getElementById('shared-evening-view');
     const backToFriendProfileBtn = document.getElementById('back-to-friend-profile-btn');
     const sharedEveningTitle = document.getElementById('shared-evening-title');
-    
+    const attendeesList = document.getElementById('attendees-list');
     const tabLinks = document.querySelectorAll('.tab-link');
     const tabContents = document.querySelectorAll('.tab-content');
     const requestsCountBadge = document.getElementById('requests-count-badge');
     const friendRequestsList = document.getElementById('friend-requests-list');
-
     const userSearchInput = document.getElementById('user-search-input');
     const userSearchResults = document.getElementById('user-search-results');
     const friendsList = document.getElementById('friends-list');
@@ -33,10 +107,9 @@ export function setupFriends() {
     let currentlyViewedFriend = null;
 
     // --- Fonctions principales ---
-
     function openFriendsPage() {
         switchView(friendsView);
-        updateNotificationDot(); // Pour enlever le point rouge si nécessaire
+        updateNotificationDot();
         loadFriendRequests();
         loadFriendsList();
         loadFriendSuggestions();
@@ -67,9 +140,7 @@ export function setupFriends() {
         }
     }
 
-
     // --- Chargement des données ---
-
     async function loadFriendRequests() {
         try {
             const response = await fetch('api/get_friend_requests.php');
@@ -216,9 +287,7 @@ export function setupFriends() {
         }
     }
 
-
     // --- Actions ---
-
     async function handleFriendRequestResponse(friendshipId, action) {
         try {
             const response = await fetch('api/respond_to_friend_request.php', {
@@ -272,7 +341,6 @@ export function setupFriends() {
     }
 
     // --- Profil Ami et Soirées communes ---
-
     async function openFriendProfile(friend) {
         currentlyViewedFriend = friend;
         friendProfileName.textContent = friend.username;
@@ -306,16 +374,58 @@ export function setupFriends() {
 
     async function openSharedEvening(date) {
         if (!currentlyViewedFriend) return;
+
         sharedEveningView.dataset.date = date;
         const formattedDate = new Date(date).toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' });
         sharedEveningTitle.textContent = `Soirée du ${formattedDate}`;
         switchView(sharedEveningView);
-        // La logique pour afficher le graphique partagé serait appelée ici
+
+        attendeesList.innerHTML = '<p>Chargement...</p>';
+        if (sharedScoresChart) {
+            sharedScoresChart.destroy();
+            sharedScoresChart = null;
+        }
+
+        try {
+            const scoresResponse = await fetch(`api/get_evening_scores.php?friend_id=${currentlyViewedFriend.user_id}&date=${date}`);
+            const scoresData = await scoresResponse.json();
+
+            if (scoresData.success === false) {
+                throw new Error(scoresData.error);
+            }
+            drawSharedEveningChart(scoresData, currentlyViewedFriend.username);
+            
+            // Note: get_evening_attendees.php n'est pas fourni, cette partie est speculative
+            // Si vous créez ce fichier, il devrait fonctionner
+            const attendeesResponse = await fetch(`api/get_evening_attendees.php?friend_id=${currentlyViewedFriend.user_id}&date=${date}`);
+            const attendeesData = await attendeesResponse.json();
+            if(attendeesData.success) {
+                attendeesList.innerHTML = '';
+                if(attendeesData.attendees.length > 0){
+                    attendeesData.attendees.forEach(user => {
+                        attendeesList.innerHTML += `
+                            <div class="user-item">
+                                <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
+                                <div class="user-item-info"><strong>${user.username}</strong></div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    attendeesList.innerHTML = '<p>Aucun autre participant.</p>';
+                }
+            }
+
+        } catch (error) {
+            console.error("Erreur lors du chargement de la soirée partagée:", error);
+            const chartContext = document.getElementById('shared-scores-chart-container').getContext('2d');
+            chartContext.clearRect(0, 0, chartContext.canvas.width, chartContext.canvas.height);
+            chartContext.fillStyle = 'red';
+            chartContext.textAlign = 'center';
+            chartContext.fillText("Erreur de chargement du graphique", chartContext.canvas.width / 2, 50);
+        }
     }
 
-
     // --- Écouteurs d'événements ---
-
     friendsBtn.addEventListener('click', openFriendsPage);
     
     tabLinks.forEach(tab => {
@@ -363,6 +473,6 @@ export function setupFriends() {
     backToFriendsListBtn.addEventListener('click', () => switchView(friendsView));
     backToFriendProfileBtn.addEventListener('click', () => switchView(friendProfileView));
     
-    // Mettre à jour le point de notification au démarrage si l'utilisateur est connecté
+    // Mettre à jour le point de notification au démarrage
     updateNotificationDot();
 }
