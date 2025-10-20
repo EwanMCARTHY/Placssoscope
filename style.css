@@ -182,7 +182,10 @@ p { color: var(--on-surface-color); font-size: 1rem; margin: 0; }
 .form-extra-options { display: flex; justify-content: center; align-items: center; margin-bottom: 16px; font-size: 0.9rem; color: var(--on-surface-color); }
 .form-extra-options label { cursor: pointer; display: flex; align-items: center; gap: 8px; }
 .form-extra-options input[type="checkbox"] { cursor: pointer; }
-#profile-view { justify-content: flex-start; }
+#profile-view {
+    justify-content: flex-start;
+    overflow-y: auto; /* PERMET LE SCROLL SUR LA PAGE PROFIL */
+}
 .profile-content { text-align: left; margin-top: 24px; }
 .profile-section { background-color: var(--surface-color); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
 .profile-section h3 { margin-top: 0; color: var(--primary-color); }
