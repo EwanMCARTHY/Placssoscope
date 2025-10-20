@@ -194,9 +194,10 @@ export function setupFriends() {
                 return;
             }
             friends.forEach(friend => {
-                const friendData = JSON.stringify(friend).replace(/"/g, "'");
+                // MODIFICATION ICI: On stocke le JSON proprement dans l'attribut data-friend
+                const friendData = JSON.stringify(friend);
                 friendsList.innerHTML += `
-                    <div class="user-item clickable" data-friend="${friendData}">
+                    <div class="user-item clickable" data-friend='${friendData}'>
                         <img src="${friend.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
                         <div class="user-item-info"><strong>${friend.username}</strong></div>
                         <div class="user-item-actions">
@@ -477,7 +478,8 @@ export function setupFriends() {
             const friendItem = e.target.closest('.user-item');
             if (friendItem && friendItem.dataset.friend) {
                 try {
-                    const friendData = JSON.parse(friendItem.dataset.friend.replace(/'/g, '"'));
+                    // MODIFICATION ICI: On parse directement le JSON, sans remplacer les guillemets.
+                    const friendData = JSON.parse(friendItem.dataset.friend);
                     openFriendProfile(friendData);
                 } catch(e) { console.error("Erreur parsing friend data", e); }
             }

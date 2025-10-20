@@ -24,7 +24,7 @@ try {
             u.id as user_id,
             u.username,
             u.profile_picture,
-            u.description, -- ON AJOUTE LA DESCRIPTION ICI
+            u.description,
             f.id as friendship_id
          FROM friendships f
          JOIN users u ON u.id = (CASE WHEN f.user_one_id = :current_user_id THEN f.user_two_id ELSE f.user_one_id END)
@@ -34,7 +34,19 @@ try {
     );
     
     $stmt->execute(['current_user_id' => $current_user_id]);
-    $friends = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $friends_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Nettoyer les données avant de les encoder en JSON
+    $friends = [];
+    foreach ($friends_raw as $friend) {
+        $friends[] = [
+            'user_id' => $friend['user_id'],
+            'username' => htmlspecialchars($friend['username'], ENT_QUOTES, 'UTF-8'),
+            'profile_picture' => $friend['profile_picture'],
+            'description' => htmlspecialchars($friend['description'], ENT_QUOTES, 'UTF-8'),
+            'friendship_id' => $friend['friendship_id'],
+        ];
+    }
 
     echo json_encode($friends);
 
