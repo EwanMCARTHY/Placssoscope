@@ -79,6 +79,31 @@ function drawSharedEveningChart(scoresData, friendUsername) {
     });
 }
 
+/**
+ * Met à jour la pastille de notification sur l'icône des amis.
+ */
+export async function updateNotificationDot() {
+    try {
+        const response = await fetch('api/get_friend_requests.php');
+        const requests = await response.json();
+        const friendsBtn = document.getElementById('friends-btn');
+        const requestsCountBadge = document.getElementById('requests-count-badge');
+
+        if (friendsBtn && requestsCountBadge) {
+            if (requests && requests.length > 0) {
+                friendsBtn.classList.add('has-notification');
+                requestsCountBadge.textContent = requests.length;
+                requestsCountBadge.style.display = 'inline-block';
+            } else {
+                friendsBtn.classList.remove('has-notification');
+                requestsCountBadge.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error("Impossible de vérifier les notifications d'amis.", error);
+    }
+}
+
 export function setupFriends() {
     const friendsView = document.getElementById('friends-view');
     const friendsBtn = document.getElementById('friends-btn');
@@ -120,23 +145,9 @@ export function setupFriends() {
         tabLinks.forEach(link => link.classList.remove('active'));
         tabContents.forEach(content => content.classList.remove('active'));
         clickedTab.classList.add('active');
-        document.getElementById(clickedTab.dataset.tab).classList.add('active');
-    }
-
-    async function updateNotificationDot() {
-        try {
-            const response = await fetch('api/get_friend_requests.php');
-            const requests = await response.json();
-            if (requests && requests.length > 0) {
-                friendsBtn.classList.add('has-notification');
-                requestsCountBadge.textContent = requests.length;
-                requestsCountBadge.style.display = 'inline-block';
-            } else {
-                friendsBtn.classList.remove('has-notification');
-                requestsCountBadge.style.display = 'none';
-            }
-        } catch (error) {
-            console.error("Impossible de vérifier les notifications d'amis.", error);
+        const targetTab = document.getElementById(clickedTab.dataset.tab);
+        if (targetTab) {
+            targetTab.classList.add('active');
         }
     }
 
@@ -148,11 +159,13 @@ export function setupFriends() {
             friendRequestsList.innerHTML = '';
             if (requests.length === 0) {
                 friendRequestsList.innerHTML = '<p>Aucune demande d\'ami en attente.</p>';
-                requestsCountBadge.style.display = 'none';
+                if(requestsCountBadge) requestsCountBadge.style.display = 'none';
                 return;
             }
-            requestsCountBadge.textContent = requests.length;
-            requestsCountBadge.style.display = 'inline-block';
+            if(requestsCountBadge) {
+                requestsCountBadge.textContent = requests.length;
+                requestsCountBadge.style.display = 'inline-block';
+            }
 
             requests.forEach(req => {
                 friendRequestsList.innerHTML += `
@@ -204,10 +217,10 @@ export function setupFriends() {
             const container = friendSuggestionsList.closest('.suggestions-container');
             friendSuggestionsList.innerHTML = '';
             if (!suggestions || suggestions.length === 0) {
-                container.style.display = 'none';
+                if(container) container.style.display = 'none';
                 return;
             }
-            container.style.display = 'block';
+            if(container) container.style.display = 'block';
             suggestions.forEach(user => {
                 friendSuggestionsList.innerHTML += `
                     <div class="user-item">
@@ -231,10 +244,10 @@ export function setupFriends() {
             const container = mutualFriendSuggestionsList.closest('.suggestions-container');
             mutualFriendSuggestionsList.innerHTML = '';
             if (!suggestions || suggestions.length === 0) {
-                container.style.display = 'none';
+                if(container) container.style.display = 'none';
                 return;
             }
-            container.style.display = 'block';
+            if(container) container.style.display = 'block';
             suggestions.forEach(user => {
                 mutualFriendSuggestionsList.innerHTML += `
                      <div class="user-item">
@@ -298,6 +311,7 @@ export function setupFriends() {
             if (response.ok) {
                 loadFriendRequests();
                 loadFriendsList();
+                updateNotificationDot();
             }
         } catch (error) {
             alert(`Erreur: ${error.message}`);
@@ -316,7 +330,7 @@ export function setupFriends() {
             if (response.ok && result.success) {
                 btn.innerHTML = '<i class="material-icons">hourglass_top</i>';
             } else {
-                throw new Error(result.error);
+                throw new Error(result.error || 'Une erreur est survenue.');
             }
         } catch (error) {
             alert(`Erreur: ${error.message}`);
@@ -395,14 +409,12 @@ export function setupFriends() {
             }
             drawSharedEveningChart(scoresData, currentlyViewedFriend.username);
             
-            // Note: get_evening_attendees.php n'est pas fourni, cette partie est speculative
-            // Si vous créez ce fichier, il devrait fonctionner
             const attendeesResponse = await fetch(`api/get_evening_attendees.php?friend_id=${currentlyViewedFriend.user_id}&date=${date}`);
-            const attendeesData = await attendeesResponse.json();
-            if(attendeesData.success) {
+            if (attendeesResponse.ok) {
+                const attendeesData = await attendeesResponse.json();
                 attendeesList.innerHTML = '';
-                if(attendeesData.attendees.length > 0){
-                    attendeesData.attendees.forEach(user => {
+                if(attendeesData && attendeesData.length > 0){
+                    attendeesData.forEach(user => {
                         attendeesList.innerHTML += `
                             <div class="user-item">
                                 <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
@@ -413,6 +425,8 @@ export function setupFriends() {
                 } else {
                     attendeesList.innerHTML = '<p>Aucun autre participant.</p>';
                 }
+            } else {
+                 attendeesList.innerHTML = '<p>Erreur au chargement des participants.</p>';
             }
 
         } catch (error) {
@@ -444,12 +458,15 @@ export function setupFriends() {
         if (declineBtn) handleFriendRequestResponse(declineBtn.dataset.friendshipId, 'decline');
     });
     
-    document.getElementById('tab-add-friend').addEventListener('click', (e) => {
-        const addBtn = e.target.closest('.add-friend');
-        if (addBtn) {
-            sendFriendRequest(addBtn.dataset.userId, addBtn);
-        }
-    });
+    const addFriendTab = document.getElementById('tab-add-friend');
+    if (addFriendTab) {
+        addFriendTab.addEventListener('click', (e) => {
+            const addBtn = e.target.closest('.add-friend');
+            if (addBtn) {
+                sendFriendRequest(addBtn.dataset.userId, addBtn);
+            }
+        });
+    }
 
     friendsList.addEventListener('click', (e) => {
         const removeBtn = e.target.closest('.remove-friend');
@@ -459,8 +476,10 @@ export function setupFriends() {
         } else {
             const friendItem = e.target.closest('.user-item');
             if (friendItem && friendItem.dataset.friend) {
-                const friendData = JSON.parse(friendItem.dataset.friend.replace(/'/g, '"'));
-                openFriendProfile(friendData);
+                try {
+                    const friendData = JSON.parse(friendItem.dataset.friend.replace(/'/g, '"'));
+                    openFriendProfile(friendData);
+                } catch(e) { console.error("Erreur parsing friend data", e); }
             }
         }
     });
@@ -472,7 +491,4 @@ export function setupFriends() {
 
     backToFriendsListBtn.addEventListener('click', () => switchView(friendsView));
     backToFriendProfileBtn.addEventListener('click', () => switchView(friendProfileView));
-    
-    // Mettre à jour le point de notification au démarrage
-    updateNotificationDot();
 }
