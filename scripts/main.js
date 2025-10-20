@@ -3,34 +3,52 @@ import { setupAuth } from './auth.js';
 import { setupScores } from './scores.js';
 import { setupFriends } from './friends.js';
 import { setupProfile } from './profile.js';
-import { initializeApp, checkSession, switchView, showLoader } from './ui.js';
+import { initializeApp, checkSession, switchView } from './ui.js';
 import { initializeNotifications, registerServiceWorker } from './notifications.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Gère le cas spécial de la réinitialisation du mot de passe
     const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+
+    // Gère le cas de la réinitialisation du mot de passe
     if (urlParams.has('reset_token')) {
-        setupAuth(); // La fonction setupAuth gère l'affichage de la vue de réinitialisation
-        return; // On arrête l'exécution ici
+        setupAuth();
+        return;
     }
 
     // Processus de démarrage normal
     const user = await checkSession();
 
     if (user) {
-        // 1. Initialiser l'application principale et les écouteurs globaux
         initializeApp(user);
-
-        // 2. Enregistrer le Service Worker et initialiser les notifications
         await registerServiceWorker();
         initializeNotifications();
 
-        // 3. Configurer les modules spécifiques (scores, amis, profil)
+        // *** CORRECTION APPLIQUÉE ICI ***
+        // L'appel à setupFriends est simplifié, sans paramètre superflu.
         setupScores(user);
         setupFriends(user);
         setupProfile(user);
+
+        // Si l'URL contient l'action de la notification...
+        if (action === 'show_friend_requests') {
+            const friendsView = document.getElementById('friends-view');
+            const requestsTab = document.querySelector('.tab-link[data-tab="tab-requests"]');
+            
+            // On s'assure que les éléments existent bien
+            if (friendsView && requestsTab) {
+                // 1. On affiche la page "Amis"
+                switchView(friendsView);
+                
+                // 2. On simule un clic sur l'onglet "Demandes"
+                requestsTab.click();
+            }
+
+            // On nettoie l'URL pour éviter que l'action se répète si l'utilisateur recharge la page
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
     } else {
-        // Si aucun utilisateur n'est connecté, configurer et afficher la vue d'authentification
         setupAuth();
         switchView(document.getElementById('auth-view'));
     }

@@ -39,7 +39,7 @@ try {
     exit();
 }
 
-$notification_error = null; // Variable pour stocker une éventuelle erreur de notification
+$notification_error = null;
 
 try {
     // --- Logique principale : Création de la demande d'ami ---
@@ -58,9 +58,6 @@ try {
             $sender = $stmt->fetch(PDO::FETCH_ASSOC);
             $sender_name = $sender ? $sender['username'] : 'Quelqu\'un';
 
-            // *** POINT TRÈS IMPORTANT ***
-            // La clé privée ci-dessous est une clé de TEST. Vous devez la remplacer
-            // par la VRAIE clé privée que vous avez générée pour votre site.
             $auth = [
                 'VAPID' => [
                     'subject' => 'https://placssographe.fr',
@@ -71,10 +68,14 @@ try {
 
             $webPush = new WebPush($auth);
 
+            // *** CORRECTION APPLIQUÉE ICI ***
             $notificationPayload = json_encode([
                 'title' => 'Nouvelle demande d\'ami !',
                 'body' => $sender_name . ' vous a envoyé une demande d\'ami.',
                 'icon' => 'assets/default-avatar.png',
+                'data' => [
+                    'url' => '/?action=show_friend_requests' // On ajoute l'URL de destination
+                ]
             ]);
 
             $subscription = Subscription::create([
@@ -86,11 +87,9 @@ try {
             $webPush->sendOneNotification($subscription, $notificationPayload);
         }
     } catch (Throwable $e) {
-        // Au lieu d'ignorer l'erreur, on la stocke pour l'afficher
         $notification_error = $e->getMessage();
     }
 
-    // On renvoie une réponse de succès, avec l'erreur de notif si elle existe
     echo json_encode(['success' => true, 'notification_error' => $notification_error]);
 
 } catch (PDOException $e) {
