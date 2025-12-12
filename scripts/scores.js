@@ -1,5 +1,5 @@
 // scripts/scores.js
-import { switchView, showModal, hideModal } from './ui.js';
+import { switchView, showModal, hideModal, escapeHtml } from './ui.js';
 
 let currentScore = 5.0;
 let scoresChart;
@@ -14,28 +14,55 @@ function updateScoreDisplay(value) {
 
 async function sendScore() {
     const btn = document.getElementById('send-score-btn');
+    
+    // Protection supplémentaire contre le double-clic
+    if (btn.disabled) return;
+
     btn.disabled = true;
     btn.textContent = 'Envoi...';
+
+    // On capture la valeur du score AU MOMENT du clic pour éviter
+    // qu'elle ne change si l'utilisateur bouge le slider pendant l'envoi.
+    const scoreToSend = currentScore;
+
     try {
         const response = await fetch('api/save_score.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ score: currentScore })
+            body: JSON.stringify({ score: scoreToSend })
         });
+
+        // CORRECTION CRITIQUE : Gestion de l'expiration de session
+        if (response.status === 401) {
+            alert("Votre session a expiré. Vous allez être redirigé vers la connexion.");
+            window.location.reload(); // Redirige vers le login via le checkSession du main.js
+            return;
+        }
+
         const result = await response.json();
+        
         if (!response.ok) throw new Error(result.error || 'Erreur inconnue');
+
+        // Succès visuel
         btn.style.backgroundColor = 'var(--success-color)';
         btn.textContent = 'Envoyé !';
+
+        // Optionnel : Rafraîchir l'historique tout de suite pour voir son point
+        // fetchAndDisplayScores(); 
+
     } catch (error) {
         console.error('Erreur lors de l\'envoi du score:', error);
         btn.style.backgroundColor = 'var(--error-color)';
         btn.textContent = 'Échec';
+    } finally {
+        // Le bloc finally garantit que le bouton est réactivé quoi qu'il arrive
+        // (Succès ou Erreur réseau), après le délai d'affichage du message.
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.style.backgroundColor = '';
+            btn.textContent = 'Envoyer';
+        }, 1500);
     }
-    setTimeout(() => {
-        btn.disabled = false;
-        btn.style.backgroundColor = '';
-        btn.textContent = 'Envoyer';
-    }, 1500);
 }
 
 async function fetchAndDisplayScores() {
@@ -68,7 +95,7 @@ function displayScoresList(dataByDay) {
         dayGroupEl.dataset.day = day;
         dayGroupEl.innerHTML = `
             <h3>
-                <span>${dayData.customName || new Date(day).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                <span>${dayData.customName ? escapeHtml(dayData.customName) : new Date(day).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                 <button class="btn-icon rename-day-btn"><i class="material-icons">drive_file_rename_outline</i></button>
             </h3>
         `;

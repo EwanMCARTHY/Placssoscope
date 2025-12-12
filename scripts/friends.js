@@ -1,5 +1,5 @@
 // scripts/friends.js
-import { switchView } from './ui.js';
+import { switchView, escapeHtml } from './ui.js';
 
 // On garde une référence au graphique pour pouvoir le détruire et le recréer
 let sharedScoresChart = null;
@@ -171,7 +171,7 @@ export function setupFriends() {
                 friendRequestsList.innerHTML += `
                     <div class="user-item">
                         <img src="${req.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
-                        <div class="user-item-info"><strong>${req.username}</strong></div>
+                        <div class="user-item-info"><strong>${escapeHtml(req.username)}</strong></div>
                         <div class="user-item-actions">
                             <button class="btn-icon accept" data-friendship-id="${req.friendship_id}" title="Accepter"><i class="material-icons">check</i></button>
                             <button class="btn-icon decline" data-friendship-id="${req.friendship_id}" title="Refuser"><i class="material-icons">close</i></button>
@@ -199,7 +199,7 @@ export function setupFriends() {
                 friendsList.innerHTML += `
                     <div class="user-item clickable" data-friend='${friendData}'>
                         <img src="${friend.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
-                        <div class="user-item-info"><strong>${friend.username}</strong></div>
+                        <div class="user-item-info"><strong>${escapeHtml(friend.username)}</strong></div>
                         <div class="user-item-actions">
                             <button class="btn-icon remove-friend decline" data-friendship-id="${friend.friendship_id}" title="Supprimer l'ami"><i class="material-icons">person_remove</i></button>
                         </div>
@@ -226,7 +226,7 @@ export function setupFriends() {
                 friendSuggestionsList.innerHTML += `
                     <div class="user-item">
                         <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
-                        <div class="user-item-info"><strong>${user.username}</strong></div>
+                        <div class="user-item-info"><strong>${escapeHtml(user.username)}</strong></div>
                         <div class="user-item-actions">
                             <button class="btn-icon add-friend" data-user-id="${user.id}" title="Ajouter en ami"><i class="material-icons">person_add</i></button>
                         </div>
@@ -254,7 +254,7 @@ export function setupFriends() {
                      <div class="user-item">
                         <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
                         <div class="user-item-info">
-                            <strong>${user.username}</strong>
+                            <strong>${escapeHtml(user.username)}</strong>
                             <small>${user.mutual_friends} ami(s) en commun</small>
                         </div>
                         <div class="user-item-actions">
@@ -291,7 +291,7 @@ export function setupFriends() {
                 userSearchResults.innerHTML += `
                     <div class="user-item">
                         <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
-                        <div class="user-item-info"><strong>${user.username}</strong></div>
+                        <div class="user-item-info"><strong>${escapeHtml(user.username)}</strong></div>
                         <div class="user-item-actions">${actionButton}</div>
                     </div>
                 `;
