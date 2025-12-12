@@ -48,12 +48,24 @@ body {
     min-height: 0; /* AJOUTEZ CETTE LIGNE IMPÉRATIVEMENT */
 }
 
+.main-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 16px; 
+    position: relative; 
+}
+
 .live-clock {
-    font-size: 1.5rem;
-    font-weight: 700;
+    position: absolute; /* On la sort du flux pour la centrer */
+    left: 50%;
+    transform: translateX(-50%); /* Centrage parfait */
+    font-size: 1.1rem; /* Plus petit (était 1.5rem) */
+    font-weight: 600;
     color: var(--on-background-color);
     letter-spacing: 1px;
-    font-variant-numeric: tabular-nums; /* Empêche l'heure de "danser" quand les chiffres changent */
+    font-variant-numeric: tabular-nums;
+    pointer-events: none; /* Empêche de cliquer dessus par erreur */
 }
 
 /* ==========================================================================

@@ -107,27 +107,24 @@ function updateAttendeesList(datasets) {
 }
 
 // Fonction exportée pour être utilisée depuis scores.js (Historique)
-export async function openSharedEvening(date) {
+export async function openSharedEvening(date, source = 'friend') {
     const sharedEveningView = document.getElementById('shared-evening-view');
     const sharedEveningTitle = document.getElementById('shared-evening-title');
     
+    // On sauvegarde la source dans l'élément HTML pour s'en souvenir plus tard
+    sharedEveningView.dataset.source = source;
+
     sharedEveningView.dataset.date = date;
     const formattedDate = new Date(date).toLocaleDateString('fr-FR', { weekday: 'long', month: 'long', day: 'numeric' });
     sharedEveningTitle.textContent = `Soirée du ${formattedDate}`;
     
     switchView(sharedEveningView);
     
-    // Reset de l'affichage en attendant le chargement
-    if (sharedScoresChart) {
-        sharedScoresChart.destroy();
-        sharedScoresChart = null;
-    }
+    if (sharedScoresChart) { sharedScoresChart.destroy(); sharedScoresChart = null; }
     document.getElementById('attendees-list').innerHTML = '<p>Chargement des données...</p>';
-
     try {
         const response = await fetch(`api/get_party_data.php?date=${date}`);
         const result = await response.json();
-        
         if (result.success) {
             drawPartyChart(result.datasets);
             updateAttendeesList(result.datasets);
@@ -135,7 +132,6 @@ export async function openSharedEvening(date) {
             document.getElementById('attendees-list').innerHTML = `<p style="color:var(--error-color)">Erreur: ${result.error}</p>`;
         }
     } catch (e) {
-        console.error("Erreur Party Data:", e);
         document.getElementById('attendees-list').innerHTML = '<p style="color:var(--error-color)">Erreur de chargement.</p>';
     }
 }
@@ -436,8 +432,12 @@ export function setupFriends(user) {
     backToFriendsListBtn.addEventListener('click', () => switchView(friendsView));
     backToFriendProfileBtn.addEventListener('click', () => switchView(friendProfileView));
     document.getElementById('back-to-friend-profile-btn').addEventListener('click', () => {
-         // Si on vient de l'historique, on retourne à l'historique, sinon profil ami
-         // Pour simplifier, on retourne au profil ami par défaut ou friends view
-         switchView(friendProfileView); 
+        const sharedView = document.getElementById('shared-evening-view');
+        // On vérifie d'où on vient
+        if (sharedView.dataset.source === 'history') {
+            switchView(document.getElementById('history-view'));
+        } else {
+            switchView(document.getElementById('friend-profile-view'));
+        }
     });
 }
