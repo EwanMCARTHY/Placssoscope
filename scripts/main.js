@@ -6,6 +6,22 @@ import { setupProfile } from './profile.js';
 import { initializeApp, checkSession, switchView } from './ui.js';
 import { initializeNotifications, registerServiceWorker } from './notifications.js';
 
+function startClock() {
+    const clockEl = document.getElementById('live-clock');
+    if (!clockEl) return;
+
+    function update() {
+        const now = new Date();
+        // Force l'heure sur le fuseau Paris si besoin, ou locale
+        clockEl.textContent = now.toLocaleTimeString('fr-FR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+    }
+    update(); // Appel immédiat
+    setInterval(update, 1000); // Mise à jour chaque seconde
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get('action');
@@ -19,6 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (user) {
         initializeApp(user);
+        startClock();
         await registerServiceWorker();
         initializeNotifications();
 
@@ -26,8 +43,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupFriends(user);
         setupProfile(user);
         
-        // *** CORRECTION FINALE APPLIQUÉE ICI ***
-        // Après que tout est initialisé, on lance la vérification pour la pastille.
         await updateNotificationDot();
 
         if (action === 'show_friend_requests') {

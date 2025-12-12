@@ -1,5 +1,6 @@
 // scripts/scores.js
 import { switchView, showModal, hideModal, escapeHtml } from './ui.js';
+import { openSharedEvening } from './friends.js'; // Import de la fonction
 
 let currentScore = 5.0;
 let scoresChart;
@@ -14,15 +15,9 @@ function updateScoreDisplay(value) {
 
 async function sendScore() {
     const btn = document.getElementById('send-score-btn');
-    
-    // Protection supplémentaire contre le double-clic
     if (btn.disabled) return;
-
     btn.disabled = true;
     btn.textContent = 'Envoi...';
-
-    // On capture la valeur du score AU MOMENT du clic pour éviter
-    // qu'elle ne change si l'utilisateur bouge le slider pendant l'envoi.
     const scoreToSend = currentScore;
 
     try {
@@ -32,37 +27,27 @@ async function sendScore() {
             body: JSON.stringify({ score: scoreToSend })
         });
 
-        // CORRECTION CRITIQUE : Gestion de l'expiration de session
         if (response.status === 401) {
-            alert("Votre session a expiré. Vous allez être redirigé vers la connexion.");
-            window.location.reload(); // Redirige vers le login via le checkSession du main.js
+            alert("Session expirée. Reconnexion requise.");
+            window.location.reload();
             return;
         }
 
         const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Erreur');
         
-        if (!response.ok) throw new Error(result.error || 'Erreur inconnue');
-
-        // Succès visuel
         btn.style.backgroundColor = 'var(--success-color)';
         btn.textContent = 'Envoyé !';
-
-        // Optionnel : Rafraîchir l'historique tout de suite pour voir son point
-        // fetchAndDisplayScores(); 
-
     } catch (error) {
-        console.error('Erreur lors de l\'envoi du score:', error);
+        console.error('Erreur:', error);
         btn.style.backgroundColor = 'var(--error-color)';
         btn.textContent = 'Échec';
-    } finally {
-        // Le bloc finally garantit que le bouton est réactivé quoi qu'il arrive
-        // (Succès ou Erreur réseau), après le délai d'affichage du message.
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.style.backgroundColor = '';
-            btn.textContent = 'Envoyer';
-        }, 1500);
     }
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.style.backgroundColor = '';
+        btn.textContent = 'Envoyer';
+    }, 1500);
 }
 
 async function fetchAndDisplayScores() {
@@ -75,7 +60,7 @@ async function fetchAndDisplayScores() {
         const allDays = Object.keys(allScoresData);
         updateChart(allDays);
     } catch (error) {
-        console.error('Erreur lors de la récupération des scores:', error);
+        console.error('Erreur:', error);
         document.getElementById('scores-list').innerHTML = `<p style="color: var(--error-color);">Impossible de charger l'historique.</p>`;
     }
 }
@@ -84,19 +69,27 @@ function displayScoresList(dataByDay) {
     const container = document.getElementById('scores-list');
     container.innerHTML = '';
     const sortedDays = Object.keys(dataByDay).sort((a, b) => new Date(b) - new Date(a));
+    
     if (sortedDays.length === 0) {
         container.innerHTML = `<p>Aucun score enregistré.</p>`;
         return;
     }
+
     sortedDays.forEach(day => {
         const dayData = dataByDay[day];
         const dayGroupEl = document.createElement('div');
         dayGroupEl.className = 'day-group';
         dayGroupEl.dataset.day = day;
+        
+        const dayName = dayData.customName ? escapeHtml(dayData.customName) : new Date(day).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
         dayGroupEl.innerHTML = `
             <h3>
-                <span>${dayData.customName ? escapeHtml(dayData.customName) : new Date(day).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-                <button class="btn-icon rename-day-btn"><i class="material-icons">drive_file_rename_outline</i></button>
+                <span>${dayName}</span>
+                <div class="day-actions" style="display:flex; gap:8px;">
+                     <button class="btn-icon view-party-btn" title="Voir le groupe"><i class="material-icons">groups</i></button>
+                    <button class="btn-icon rename-day-btn"><i class="material-icons">drive_file_rename_outline</i></button>
+                </div>
             </h3>
         `;
         (dayData.scores || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).forEach(score => {
@@ -126,7 +119,7 @@ function populateChartFilters(dataByDay) {
     }
     document.getElementById('chart-filter-dropdown').style.display = 'block';
     sortedDays.forEach(day => {
-        const labelText = dataByDay[day].customName || new Date(day).toLocaleDateString('fr-FR', { weekday: 'short', month: 'short', day: 'numeric' });
+        const labelText = dataByDay[day].customName ? escapeHtml(dataByDay[day].customName) : new Date(day).toLocaleDateString('fr-FR', { weekday: 'short', month: 'short', day: 'numeric' });
         list.innerHTML += `
             <div class="filter-item">
                 <input type="checkbox" id="filter-${day}" value="${day}" checked>
@@ -138,14 +131,10 @@ function populateChartFilters(dataByDay) {
 
 function calculateXAxisBounds(datasets) {
     const allPoints = datasets.flatMap(ds => ds.data);
-    if (allPoints.length === 0) {
-        // Vue par défaut pour un graphique vide, par exemple de 18h à 6h du matin
-        return { min: 18, max: 30 };
-    }
+    if (allPoints.length === 0) return { min: 18, max: 30 };
     const minTime = Math.min(...allPoints.map(p => p.x));
     const maxTime = Math.max(...allPoints.map(p => p.x));
-    
-    // Ajoute une marge à l'axe pour une meilleure lisibilité
+    if (maxTime - minTime < 4) return { min: Math.floor(minTime) - 2, max: Math.ceil(maxTime) + 2 };
     return { min: Math.floor(minTime) - 1, max: Math.ceil(maxTime) + 1 };
 }
 
@@ -157,7 +146,7 @@ function updateChart(selectedDays) {
             const getTime = (dateStr) => {
                 const d = new Date(dateStr);
                 let timeValue = d.getHours() + d.getMinutes() / 60;
-                if (d.getHours() < 10) timeValue += 24; // Gère les heures du matin (ex: 2h devient 26h)
+                if (d.getHours() < 10) timeValue += 24;
                 return timeValue;
             };
             return {
@@ -169,12 +158,10 @@ function updateChart(selectedDays) {
     };
 
     const datasets = buildChartDatasets(allScoresData, selectedDays);
-    const { min, max } = calculateXAxisBounds(datasets); // Calcul dynamique des limites
+    const { min, max } = calculateXAxisBounds(datasets);
     const chartContext = document.getElementById('scores-chart-container').getContext('2d');
     
-    if (scoresChart) {
-        scoresChart.destroy();
-    }
+    if (scoresChart) scoresChart.destroy();
     
     scoresChart = new Chart(chartContext, {
         type: 'line',
@@ -183,9 +170,7 @@ function updateChart(selectedDays) {
             responsive: true, maintainAspectRatio: false,
             scales: {
                 x: {
-                    type: 'linear',
-                    min: min, // Utilisation de la limite inférieure dynamique
-                    max: max, // Utilisation de la limite supérieure dynamique
+                    type: 'linear', min: min, max: max,
                     ticks: { color: '#ccc', stepSize: 2, callback: (v) => `${String(Math.floor(v) % 24).padStart(2, '0')}:00` },
                     grid: { color: 'rgba(255, 255, 255, 0.1)' }
                 },
@@ -199,33 +184,29 @@ function updateChart(selectedDays) {
 async function updateScore(id, newScore) {
     try {
         const res = await fetch('api/update_score.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, score: newScore }) });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
+        if (!res.ok) throw new Error();
         fetchAndDisplayScores();
-    } catch (error) { alert("La mise à jour a échoué."); }
+    } catch (e) { alert("Erreur maj score."); }
 }
 
 async function deleteScore(id) {
-    if (!confirm("Voulez-vous vraiment supprimer ce score ?")) return;
+    if (!confirm("Supprimer ce score ?")) return;
     try {
         const res = await fetch('api/delete_score.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
+        if (!res.ok) throw new Error();
         fetchAndDisplayScores();
-    } catch (error) { alert("La suppression a échoué."); }
+    } catch (e) { alert("Erreur suppression."); }
 }
 
 async function renameDay(date, newName) {
     try {
         const res = await fetch('api/rename_day.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, name: newName }) });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
+        if (!res.ok) throw new Error();
         fetchAndDisplayScores();
-    } catch (error) { alert("Le renommage a échoué."); }
+    } catch (e) { alert("Erreur renommage."); }
 }
 
-export function setupScores() {
-    // Initialisation du slider
+export function setupScores(user) {
     $("#score-slider").roundSlider({
         radius: 120, width: 22, handleSize: "+8", handleShape: "dot", sliderType: "min-range",
         value: 5.0, min: 0, max: 10, step: 0.1, startAngle: 90,
@@ -234,7 +215,6 @@ export function setupScores() {
         change: (e) => updateScoreDisplay(e.value)
     });
 
-    // Écouteurs d'événements
     document.getElementById('send-score-btn').addEventListener('click', sendScore);
     document.getElementById('show-history-btn').addEventListener('click', () => {
         switchView(document.getElementById('history-view'));
@@ -246,10 +226,17 @@ export function setupScores() {
         e.target.textContent = list.classList.contains('visible') ? 'Masquer la liste' : 'Afficher la liste';
     });
 
-    // Actions sur la liste
+    // Event Delegation pour la liste
     document.getElementById('scores-list').addEventListener('click', e => {
         const scoreItem = e.target.closest('.score-item');
         const dayGroup = e.target.closest('.day-group');
+        
+        // Clic sur le bouton Groupe
+        if (e.target.closest('.view-party-btn')) {
+            openSharedEvening(dayGroup.dataset.day);
+            return;
+        }
+
         if (e.target.closest('.edit-btn')) {
             scoreIdToUpdate = scoreItem.dataset.id;
             document.getElementById('edit-score-input').value = scoreItem.querySelector('.score-value').textContent;
@@ -279,7 +266,7 @@ export function setupScores() {
         }
     });
     
-    // Filtres du graphique
+    // Filtres
     const filterList = document.getElementById('chart-filter-list');
     document.getElementById('chart-filter-btn').addEventListener('click', () => document.getElementById('chart-filter-panel').classList.toggle('visible'));
     document.addEventListener('click', (e) => {

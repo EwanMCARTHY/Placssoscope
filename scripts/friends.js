@@ -1,56 +1,59 @@
 // scripts/friends.js
 import { switchView, escapeHtml } from './ui.js';
 
-// On garde une référence au graphique pour pouvoir le détruire et le recréer
 let sharedScoresChart = null;
 
-/**
- * Calcule les limites de l'axe des X pour une meilleure lisibilité.
- */
+// Génère une couleur unique (HSL) basée sur le pseudo
+function getColorForUser(username) {
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash % 360);
+    return `hsl(${hue}, 70%, 60%)`;
+}
+
+// Calcule les bornes X du graphique
 function calculateXAxisBounds(datasets) {
     const allPoints = datasets.flatMap(ds => ds.data);
     if (allPoints.length === 0) {
-        return { min: 18, max: 30 }; // Vue par défaut de 18h à 6h
+        return { min: 18, max: 30 };
     }
     const minTime = Math.min(...allPoints.map(p => p.x));
     const maxTime = Math.max(...allPoints.map(p => p.x));
+    
+    // Si une seule donnée ou plage très courte, on force un minimum de largeur (ex: 4h)
+    if (maxTime - minTime < 4) {
+        return { min: Math.floor(minTime) - 2, max: Math.ceil(maxTime) + 2 };
+    }
     return { min: Math.floor(minTime) - 1, max: Math.ceil(maxTime) + 1 };
 }
 
-/**
- * Dessine ou met à jour le graphique des scores partagés.
- * Cette version est compatible avec votre script get_evening_scores.php
- */
-function drawSharedEveningChart(scoresData, friendUsername) {
-    const datasets = [];
-    const getTime = (dateStr) => {
-        const d = new Date(dateStr);
-        let timeValue = d.getHours() + d.getMinutes() / 60;
-        if (d.getHours() < 10) timeValue += 24;
-        return timeValue;
-    };
+// Convertit une date SQL en heure décimale (ex: 22h30 -> 22.5, 02h00 -> 26.0)
+function getTime(dateStr) {
+    const d = new Date(dateStr);
+    let timeValue = d.getHours() + d.getMinutes() / 60;
+    if (d.getHours() < 10) timeValue += 24; 
+    return timeValue;
+}
 
-    // Création du dataset pour l'utilisateur actuel (my_scores)
-    if (scoresData.my_scores) {
-        datasets.push({
-            label: 'Moi',
-            data: scoresData.my_scores.map(s => ({ x: getTime(s.created_at), y: parseFloat(s.score_value) })).sort((a, b) => a.x - b.x),
-            borderColor: 'rgba(147, 51, 234, 1)',
-            backgroundColor: 'rgba(147, 51, 234, 0.2)',
+// Dessine le graphique multi-utilisateurs
+function drawPartyChart(datasetsRaw) {
+    const datasets = datasetsRaw.map(ds => {
+        const color = getColorForUser(ds.label);
+        return {
+            label: ds.label,
+            data: ds.data.map(p => ({
+                x: getTime(p.created_at),
+                y: parseFloat(p.score)
+            })).sort((a, b) => a.x - b.x),
+            borderColor: color,
+            backgroundColor: color.replace('hsl', 'hsla').replace(')', ', 0.2)'),
             tension: 0.2,
-        });
-    }
-
-    // Création du dataset pour l'ami (friend_scores)
-    if (scoresData.friend_scores) {
-        datasets.push({
-            label: friendUsername || 'Ami',
-            data: scoresData.friend_scores.map(s => ({ x: getTime(s.created_at), y: parseFloat(s.score_value) })).sort((a, b) => a.x - b.x),
-            borderColor: 'rgba(3, 218, 198, 1)',
-            backgroundColor: 'rgba(3, 218, 198, 0.2)',
-            tension: 0.2,
-        });
-    }
+            pointRadius: 4,
+            pointHoverRadius: 6
+        };
+    });
 
     const { min, max } = calculateXAxisBounds(datasets);
     const chartContext = document.getElementById('shared-scores-chart-container').getContext('2d');
@@ -63,7 +66,8 @@ function drawSharedEveningChart(scoresData, friendUsername) {
         type: 'line',
         data: { datasets },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true, 
+            maintainAspectRatio: false,
             scales: {
                 x: {
                     type: 'linear',
@@ -79,9 +83,63 @@ function drawSharedEveningChart(scoresData, friendUsername) {
     });
 }
 
-/**
- * Met à jour la pastille de notification sur l'icône des amis.
- */
+// Met à jour la liste des participants sous le graphique
+function updateAttendeesList(datasets) {
+    const list = document.getElementById('attendees-list');
+    list.innerHTML = '';
+    
+    if (!datasets || datasets.length === 0) {
+        list.innerHTML = '<p>Aucun participant.</p>';
+        return;
+    }
+
+    datasets.forEach(ds => {
+        const color = getColorForUser(ds.label);
+        const pic = ds.profile_picture || 'assets/default-avatar.png';
+        
+        list.innerHTML += `
+            <div class="user-item" style="border-left: 4px solid ${color}; padding-left: 12px;">
+                <img src="${pic}" alt="Avatar" class="user-item-avatar">
+                <div class="user-item-info"><strong>${escapeHtml(ds.label)}</strong></div>
+            </div>
+        `;
+    });
+}
+
+// Fonction exportée pour être utilisée depuis scores.js (Historique)
+export async function openSharedEvening(date) {
+    const sharedEveningView = document.getElementById('shared-evening-view');
+    const sharedEveningTitle = document.getElementById('shared-evening-title');
+    
+    sharedEveningView.dataset.date = date;
+    const formattedDate = new Date(date).toLocaleDateString('fr-FR', { weekday: 'long', month: 'long', day: 'numeric' });
+    sharedEveningTitle.textContent = `Soirée du ${formattedDate}`;
+    
+    switchView(sharedEveningView);
+    
+    // Reset de l'affichage en attendant le chargement
+    if (sharedScoresChart) {
+        sharedScoresChart.destroy();
+        sharedScoresChart = null;
+    }
+    document.getElementById('attendees-list').innerHTML = '<p>Chargement des données...</p>';
+
+    try {
+        const response = await fetch(`api/get_party_data.php?date=${date}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            drawPartyChart(result.datasets);
+            updateAttendeesList(result.datasets);
+        } else {
+            document.getElementById('attendees-list').innerHTML = `<p style="color:var(--error-color)">Erreur: ${result.error}</p>`;
+        }
+    } catch (e) {
+        console.error("Erreur Party Data:", e);
+        document.getElementById('attendees-list').innerHTML = '<p style="color:var(--error-color)">Erreur de chargement.</p>';
+    }
+}
+
 export async function updateNotificationDot() {
     try {
         const response = await fetch('api/get_friend_requests.php');
@@ -100,11 +158,11 @@ export async function updateNotificationDot() {
             }
         }
     } catch (error) {
-        console.error("Impossible de vérifier les notifications d'amis.", error);
+        console.error("Erreur notif:", error);
     }
 }
 
-export function setupFriends() {
+export function setupFriends(user) {
     const friendsView = document.getElementById('friends-view');
     const friendsBtn = document.getElementById('friends-btn');
     const friendProfileView = document.getElementById('friend-profile-view');
@@ -114,24 +172,19 @@ export function setupFriends() {
     const friendProfileUsername = document.getElementById('friend-profile-username');
     const friendProfileDescription = document.getElementById('friend-profile-description-text');
     const commonEveningsList = document.getElementById('common-evenings-list');
-    const sharedEveningView = document.getElementById('shared-evening-view');
     const backToFriendProfileBtn = document.getElementById('back-to-friend-profile-btn');
-    const sharedEveningTitle = document.getElementById('shared-evening-title');
-    const attendeesList = document.getElementById('attendees-list');
-    const tabLinks = document.querySelectorAll('.tab-link');
-    const tabContents = document.querySelectorAll('.tab-content');
-    const requestsCountBadge = document.getElementById('requests-count-badge');
     const friendRequestsList = document.getElementById('friend-requests-list');
     const userSearchInput = document.getElementById('user-search-input');
     const userSearchResults = document.getElementById('user-search-results');
     const friendsList = document.getElementById('friends-list');
     const friendSuggestionsList = document.getElementById('friend-suggestions-list');
     const mutualFriendSuggestionsList = document.getElementById('mutual-friend-suggestions-list');
+    const tabLinks = document.querySelectorAll('.tab-link');
+    const tabContents = document.querySelectorAll('.tab-content');
 
     let searchTimeout;
-    let currentlyViewedFriend = null;
 
-    // --- Fonctions principales ---
+    // --- Navigation ---
     function openFriendsPage() {
         switchView(friendsView);
         updateNotificationDot();
@@ -146,42 +199,31 @@ export function setupFriends() {
         tabContents.forEach(content => content.classList.remove('active'));
         clickedTab.classList.add('active');
         const targetTab = document.getElementById(clickedTab.dataset.tab);
-        if (targetTab) {
-            targetTab.classList.add('active');
-        }
+        if (targetTab) targetTab.classList.add('active');
     }
 
-    // --- Chargement des données ---
+    // --- Chargements ---
     async function loadFriendRequests() {
         try {
             const response = await fetch('api/get_friend_requests.php');
             const requests = await response.json();
             friendRequestsList.innerHTML = '';
             if (requests.length === 0) {
-                friendRequestsList.innerHTML = '<p>Aucune demande d\'ami en attente.</p>';
-                if(requestsCountBadge) requestsCountBadge.style.display = 'none';
+                friendRequestsList.innerHTML = '<p>Aucune demande.</p>';
                 return;
             }
-            if(requestsCountBadge) {
-                requestsCountBadge.textContent = requests.length;
-                requestsCountBadge.style.display = 'inline-block';
-            }
-
             requests.forEach(req => {
                 friendRequestsList.innerHTML += `
                     <div class="user-item">
                         <img src="${req.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
                         <div class="user-item-info"><strong>${escapeHtml(req.username)}</strong></div>
                         <div class="user-item-actions">
-                            <button class="btn-icon accept" data-friendship-id="${req.friendship_id}" title="Accepter"><i class="material-icons">check</i></button>
-                            <button class="btn-icon decline" data-friendship-id="${req.friendship_id}" title="Refuser"><i class="material-icons">close</i></button>
+                            <button class="btn-icon accept" data-friendship-id="${req.friendship_id}"><i class="material-icons">check</i></button>
+                            <button class="btn-icon decline" data-friendship-id="${req.friendship_id}"><i class="material-icons">close</i></button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
-        } catch (error) {
-            console.error('Erreur chargement demandes d\'ami:', error);
-        }
+        } catch (e) { console.error(e); }
     }
 
     async function loadFriendsList() {
@@ -190,25 +232,21 @@ export function setupFriends() {
             const friends = await response.json();
             friendsList.innerHTML = '';
             if (friends.length === 0) {
-                friendsList.innerHTML = '<p>Vous n\'avez aucun ami pour le moment.</p>';
+                friendsList.innerHTML = '<p>Aucun ami.</p>';
                 return;
             }
             friends.forEach(friend => {
-                // MODIFICATION ICI: On stocke le JSON proprement dans l'attribut data-friend
                 const friendData = JSON.stringify(friend);
                 friendsList.innerHTML += `
                     <div class="user-item clickable" data-friend='${friendData}'>
                         <img src="${friend.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
                         <div class="user-item-info"><strong>${escapeHtml(friend.username)}</strong></div>
                         <div class="user-item-actions">
-                            <button class="btn-icon remove-friend decline" data-friendship-id="${friend.friendship_id}" title="Supprimer l'ami"><i class="material-icons">person_remove</i></button>
+                            <button class="btn-icon remove-friend decline" data-friendship-id="${friend.friendship_id}"><i class="material-icons">person_remove</i></button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
-        } catch (error) {
-            console.error('Erreur chargement liste d\'amis:', error);
-        }
+        } catch (e) { console.error(e); }
     }
 
     async function loadFriendSuggestions() {
@@ -217,27 +255,26 @@ export function setupFriends() {
             const suggestions = await response.json();
             const container = friendSuggestionsList.closest('.suggestions-container');
             friendSuggestionsList.innerHTML = '';
+            
             if (!suggestions || suggestions.length === 0) {
                 if(container) container.style.display = 'none';
                 return;
             }
             if(container) container.style.display = 'block';
+            
             suggestions.forEach(user => {
                 friendSuggestionsList.innerHTML += `
                     <div class="user-item">
                         <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
                         <div class="user-item-info"><strong>${escapeHtml(user.username)}</strong></div>
                         <div class="user-item-actions">
-                            <button class="btn-icon add-friend" data-user-id="${user.id}" title="Ajouter en ami"><i class="material-icons">person_add</i></button>
+                            <button class="btn-icon add-friend" data-user-id="${user.id}"><i class="material-icons">person_add</i></button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
-        } catch (error) {
-            console.error('Erreur chargement suggestions:', error);
-        }
+        } catch (e) { console.error(e); }
     }
-
+    
     async function loadMutualFriendSuggestions() {
         try {
             const response = await fetch('api/get_mutual_friend_suggestions.php');
@@ -258,14 +295,11 @@ export function setupFriends() {
                             <small>${user.mutual_friends} ami(s) en commun</small>
                         </div>
                         <div class="user-item-actions">
-                            <button class="btn-icon add-friend" data-user-id="${user.id}" title="Ajouter en ami"><i class="material-icons">person_add</i></button>
+                            <button class="btn-icon add-friend" data-user-id="${user.id}"><i class="material-icons">person_add</i></button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
-        } catch (error) {
-            console.error('Erreur chargement suggestions mutuelles:', error);
-        }
+        } catch (e) { console.error(e); }
     }
 
     async function searchUsers(query) {
@@ -278,219 +312,132 @@ export function setupFriends() {
             const users = await response.json();
             userSearchResults.innerHTML = '';
             if (users.length === 0) {
-                userSearchResults.innerHTML = '<p>Aucun utilisateur trouvé.</p>';
+                userSearchResults.innerHTML = '<p>Aucun résultat.</p>';
                 return;
             }
             users.forEach(user => {
-                let actionButton = `<button class="btn-icon add-friend" data-user-id="${user.id}" title="Ajouter en ami"><i class="material-icons">person_add</i></button>`;
-                if (user.status === 'pending') {
-                    actionButton = `<button class="btn-icon" disabled><i class="material-icons">hourglass_top</i></button>`;
-                } else if (user.status === 'friends') {
-                    actionButton = `<button class="btn-icon" disabled><i class="material-icons">check</i></button>`;
-                }
+                let action = `<button class="btn-icon add-friend" data-user-id="${user.id}"><i class="material-icons">person_add</i></button>`;
+                if (user.status === 'pending') action = `<button class="btn-icon" disabled><i class="material-icons">hourglass_top</i></button>`;
+                else if (user.status === 'friends') action = `<button class="btn-icon" disabled><i class="material-icons">check</i></button>`;
+                
                 userSearchResults.innerHTML += `
                     <div class="user-item">
                         <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
                         <div class="user-item-info"><strong>${escapeHtml(user.username)}</strong></div>
-                        <div class="user-item-actions">${actionButton}</div>
-                    </div>
-                `;
+                        <div class="user-item-actions">${action}</div>
+                    </div>`;
             });
-        } catch (error) {
-            console.error('Erreur de recherche:', error);
-        }
+        } catch (e) { console.error(e); }
     }
 
     // --- Actions ---
-    async function handleFriendRequestResponse(friendshipId, action) {
+    async function handleRequest(id, action) {
         try {
-            const response = await fetch('api/respond_to_friend_request.php', {
+            await fetch('api/respond_to_friend_request.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ friendship_id: friendshipId, action })
+                body: JSON.stringify({ friendship_id: id, action })
             });
-            if (response.ok) {
-                loadFriendRequests();
-                loadFriendsList();
-                updateNotificationDot();
-            }
-        } catch (error) {
-            alert(`Erreur: ${error.message}`);
-        }
+            loadFriendRequests();
+            loadFriendsList();
+            updateNotificationDot();
+        } catch (e) { alert(e); }
     }
 
-    async function sendFriendRequest(recipientId, btn) {
+    async function sendRequest(id, btn) {
         btn.disabled = true;
         try {
-            const response = await fetch('api/send_friend_request.php', {
+            const res = await fetch('api/send_friend_request.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ recipient_id: recipientId })
+                body: JSON.stringify({ recipient_id: id })
             });
-            const result = await response.json();
-            if (response.ok && result.success) {
-                btn.innerHTML = '<i class="material-icons">hourglass_top</i>';
-            } else {
-                throw new Error(result.error || 'Une erreur est survenue.');
-            }
-        } catch (error) {
-            alert(`Erreur: ${error.message}`);
-            btn.disabled = false;
-        }
+            const data = await res.json();
+            if (data.success) btn.innerHTML = '<i class="material-icons">hourglass_top</i>';
+            else throw new Error(data.error);
+        } catch (e) { alert(e.message); btn.disabled = false; }
     }
 
-    async function removeFriend(friendshipId) {
-        if (!confirm("Êtes-vous sûr de vouloir supprimer cet ami ?")) return;
+    async function removeFriend(id) {
+        if (!confirm("Supprimer cet ami ?")) return;
         try {
-            const response = await fetch('api/remove_friend.php', {
+            await fetch('api/remove_friend.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ friendship_id: friendshipId })
+                body: JSON.stringify({ friendship_id: id })
             });
-            if (response.ok) {
-                loadFriendsList();
-            }
-        } catch (error) {
-            alert(`Erreur: ${error.message}`);
-        }
+            loadFriendsList();
+        } catch (e) { alert(e); }
     }
 
-    // --- Profil Ami et Soirées communes ---
-    async function openFriendProfile(friend) {
-        currentlyViewedFriend = friend;
-        friendProfileName.textContent = friend.username;
-        friendProfileUsername.textContent = friend.username;
-        friendProfilePic.src = friend.profile_picture || 'assets/default-avatar.png';
-        friendProfileDescription.textContent = friend.description || 'Aucune description.';
-        switchView(friendProfileView);
-        commonEveningsList.innerHTML = '<p>Chargement...</p>';
-
-        try {
-            const response = await fetch(`api/get_common_evenings.php?friend_id=${friend.user_id}`);
-            const evenings = await response.json();
-            commonEveningsList.innerHTML = '';
-            if (evenings.length === 0) {
-                commonEveningsList.innerHTML = '<p>Aucune soirée en commun.</p>';
-                return;
-            }
-            evenings.forEach(evening => {
-                const date = new Date(evening.evening_date);
-                commonEveningsList.innerHTML += `
-                    <div class="evening-item" data-date="${evening.evening_date}">
-                        <div class="date">${date.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                        <div class="names">${evening.my_day_name || 'Ma soirée'} avec ${evening.friend_day_name || 'sa soirée'}</div>
-                    </div>
-                `;
-            });
-        } catch (error) {
-            commonEveningsList.innerHTML = '<p style="color: var(--error-color);">Erreur de chargement.</p>';
-        }
-    }
-
-    async function openSharedEvening(date) {
-        if (!currentlyViewedFriend) return;
-
-        sharedEveningView.dataset.date = date;
-        const formattedDate = new Date(date).toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' });
-        sharedEveningTitle.textContent = `Soirée du ${formattedDate}`;
-        switchView(sharedEveningView);
-
-        attendeesList.innerHTML = '<p>Chargement...</p>';
-        if (sharedScoresChart) {
-            sharedScoresChart.destroy();
-            sharedScoresChart = null;
-        }
-
-        try {
-            const scoresResponse = await fetch(`api/get_evening_scores.php?friend_id=${currentlyViewedFriend.user_id}&date=${date}`);
-            const scoresData = await scoresResponse.json();
-
-            if (scoresData.success === false) {
-                throw new Error(scoresData.error);
-            }
-            drawSharedEveningChart(scoresData, currentlyViewedFriend.username);
-            
-            const attendeesResponse = await fetch(`api/get_evening_attendees.php?friend_id=${currentlyViewedFriend.user_id}&date=${date}`);
-            if (attendeesResponse.ok) {
-                const attendeesData = await attendeesResponse.json();
-                attendeesList.innerHTML = '';
-                if(attendeesData && attendeesData.length > 0){
-                    attendeesData.forEach(user => {
-                        attendeesList.innerHTML += `
-                            <div class="user-item">
-                                <img src="${user.profile_picture || 'assets/default-avatar.png'}" alt="Avatar" class="user-item-avatar">
-                                <div class="user-item-info"><strong>${user.username}</strong></div>
-                            </div>
-                        `;
-                    });
-                } else {
-                    attendeesList.innerHTML = '<p>Aucun autre participant.</p>';
-                }
-            } else {
-                 attendeesList.innerHTML = '<p>Erreur au chargement des participants.</p>';
-            }
-
-        } catch (error) {
-            console.error("Erreur lors du chargement de la soirée partagée:", error);
-            const chartContext = document.getElementById('shared-scores-chart-container').getContext('2d');
-            chartContext.clearRect(0, 0, chartContext.canvas.width, chartContext.canvas.height);
-            chartContext.fillStyle = 'red';
-            chartContext.textAlign = 'center';
-            chartContext.fillText("Erreur de chargement du graphique", chartContext.canvas.width / 2, 50);
-        }
-    }
-
-    // --- Écouteurs d'événements ---
+    // --- Listeners ---
     friendsBtn.addEventListener('click', openFriendsPage);
-    
-    tabLinks.forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab));
-    });
-
+    tabLinks.forEach(tab => tab.addEventListener('click', () => switchTab(tab)));
     userSearchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => searchUsers(e.target.value), 300);
     });
 
     friendRequestsList.addEventListener('click', (e) => {
-        const acceptBtn = e.target.closest('.accept');
-        const declineBtn = e.target.closest('.decline');
-        if (acceptBtn) handleFriendRequestResponse(acceptBtn.dataset.friendshipId, 'accept');
-        if (declineBtn) handleFriendRequestResponse(declineBtn.dataset.friendshipId, 'decline');
+        const acc = e.target.closest('.accept');
+        const dec = e.target.closest('.decline');
+        if (acc) handleRequest(acc.dataset.friendshipId, 'accept');
+        if (dec) handleRequest(dec.dataset.friendshipId, 'decline');
     });
-    
+
     const addFriendTab = document.getElementById('tab-add-friend');
-    if (addFriendTab) {
+    if(addFriendTab) {
         addFriendTab.addEventListener('click', (e) => {
-            const addBtn = e.target.closest('.add-friend');
-            if (addBtn) {
-                sendFriendRequest(addBtn.dataset.userId, addBtn);
-            }
+            const btn = e.target.closest('.add-friend');
+            if (btn) sendRequest(btn.dataset.userId, btn);
         });
     }
 
     friendsList.addEventListener('click', (e) => {
-        const removeBtn = e.target.closest('.remove-friend');
-        if (removeBtn) {
-            e.stopPropagation();
-            removeFriend(removeBtn.dataset.friendshipId);
-        } else {
-            const friendItem = e.target.closest('.user-item');
-            if (friendItem && friendItem.dataset.friend) {
-                try {
-                    // MODIFICATION ICI: On parse directement le JSON, sans remplacer les guillemets.
-                    const friendData = JSON.parse(friendItem.dataset.friend);
-                    openFriendProfile(friendData);
-                } catch(e) { console.error("Erreur parsing friend data", e); }
+        const rm = e.target.closest('.remove-friend');
+        if (rm) { e.stopPropagation(); removeFriend(rm.dataset.friendshipId); }
+        else {
+            const item = e.target.closest('.user-item');
+            if (item && item.dataset.friend) {
+                const f = JSON.parse(item.dataset.friend);
+                friendProfileName.textContent = f.username;
+                friendProfileUsername.textContent = f.username;
+                friendProfilePic.src = f.profile_picture || 'assets/default-avatar.png';
+                friendProfileDescription.textContent = f.description || 'Aucune description.';
+                switchView(friendProfileView);
+                
+                // Charger les soirées communes
+                commonEveningsList.innerHTML = '<p>Chargement...</p>';
+                fetch(`api/get_common_evenings.php?friend_id=${f.user_id}`)
+                    .then(r => r.json())
+                    .then(evenings => {
+                        commonEveningsList.innerHTML = '';
+                        if (evenings.length === 0) commonEveningsList.innerHTML = '<p>Aucune soirée en commun.</p>';
+                        else {
+                            evenings.forEach(ev => {
+                                const d = new Date(ev.evening_date);
+                                commonEveningsList.innerHTML += `
+                                    <div class="evening-item" data-date="${ev.evening_date}">
+                                        <div class="date">${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+                                        <div class="names">Soirée partagée</div>
+                                    </div>`;
+                            });
+                        }
+                    });
             }
         }
     });
-    
+
     commonEveningsList.addEventListener('click', (e) => {
-        const eveningItem = e.target.closest('.evening-item');
-        if (eveningItem) openSharedEvening(eveningItem.dataset.date);
+        const item = e.target.closest('.evening-item');
+        if (item) openSharedEvening(item.dataset.date);
     });
 
     backToFriendsListBtn.addEventListener('click', () => switchView(friendsView));
     backToFriendProfileBtn.addEventListener('click', () => switchView(friendProfileView));
+    document.getElementById('back-to-friend-profile-btn').addEventListener('click', () => {
+         // Si on vient de l'historique, on retourne à l'historique, sinon profil ami
+         // Pour simplifier, on retourne au profil ami par défaut ou friends view
+         switchView(friendProfileView); 
+    });
 }
