@@ -2,6 +2,8 @@
 session_start();
 header('Content-Type: application/json');
 
+date_default_timezone_set('Europe/Paris');
+
 // 1. Sécurité et validation
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);

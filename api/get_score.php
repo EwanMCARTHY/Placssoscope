@@ -2,6 +2,8 @@
 header('Content-Type: application/json');
 session_start();
 
+date_default_timezone_set('Europe/Paris');
+
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Utilisateur non connecté.']);

@@ -2,6 +2,8 @@
 header('Content-Type: application/json');
 session_start();
 
+date_default_timezone_set('Europe/Paris');
+
 // Vérifie si l'utilisateur est connecté
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
