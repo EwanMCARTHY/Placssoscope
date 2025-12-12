@@ -31,13 +31,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         await updateNotificationDot();
 
         if (action === 'show_friend_requests') {
-            const friendsView = document.getElementById('friends-view');
-            const requestsTab = document.querySelector('.tab-link[data-tab="tab-requests"]');
-            
-            if (friendsView && requestsTab) {
-                switchView(friendsView);
-                requestsTab.click();
+            const friendsBtn = document.getElementById('friends-btn');
+            if (friendsBtn) {
+                friendsBtn.click();
+                
+                // On attend juste un instant que la vue s'affiche, puis on bascule sur l'onglet
+                setTimeout(() => {
+                    const requestsTab = document.querySelector('.tab-link[data-tab="tab-requests"]');
+                    if (requestsTab) requestsTab.click();
+                }, 100);
             }
+            // Nettoyage de l'URL
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
