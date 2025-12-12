@@ -26,19 +26,29 @@ body {
     background-color: var(--background-color);
     color: var(--on-background-color);
     overflow: hidden;
-    height: 100vh;
+    
+    height: 100vh; /* Fallback pour vieux navigateurs */
+    height: 100dvh; /* La vraie solution moderne */
+    
+    overscroll-behavior: none; 
     -webkit-tap-highlight-color: transparent;
 }
 .app-container {
     width: 100%;
     max-width: 450px;
-    height: 100dvh;
+    
+    height: 100vh; /* Fallback */
+    height: 100dvh; /* S'adapte aux barres du navigateur */
+    
     background-color: var(--background-color);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative;
     margin: 0 auto;
+
+    padding-top: env(safe-area-inset-top); 
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
 .friends-content { 

@@ -36,14 +36,15 @@ try {
     $stmt->execute(['current_user_id' => $current_user_id]);
     $friends_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Nettoyer les données avant de les encoder en JSON
+    // CORRECTION ICI : On envoie les données brutes. 
+    // C'est le Javascript (escapeHtml) qui se chargera de la sécurité à l'affichage.
     $friends = [];
     foreach ($friends_raw as $friend) {
         $friends[] = [
             'user_id' => $friend['user_id'],
-            'username' => htmlspecialchars($friend['username'], ENT_QUOTES, 'UTF-8'),
+            'username' => $friend['username'], // Plus de htmlspecialchars ici
             'profile_picture' => $friend['profile_picture'],
-            'description' => htmlspecialchars($friend['description'], ENT_QUOTES, 'UTF-8'),
+            'description' => $friend['description'], // Plus de htmlspecialchars ici non plus
             'friendship_id' => $friend['friendship_id'],
         ];
     }
