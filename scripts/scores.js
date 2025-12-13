@@ -8,9 +8,33 @@ let allScoresData = {};
 let scoreIdToUpdate = null;
 let dayToRename = null;
 
+function getScoreDescription(score) {
+    if (score >= 10) return "T'es complètement plac'ss !";
+    if (score >= 9) return "Marche difficile, on ne te comprend plus";
+    if (score >= 8) return "Tu titubes et t'as du mal à parler";
+    if (score >= 7) return "Tu as les premières pertes d'équilibre";
+    if (score >= 6) return "T'es bien";
+    if (score >= 5) return "Tu ne peux plus ignorer les effets";
+    if (score >= 4) return "Tu as les premiers effets";
+    if (score >= 3) return "Tu sens que t'es pas parfaitement sobre";
+    if (score >= 2) return "Tu sens que les effets vont bientôt arriver";
+    if (score >= 1) return "T'as touché à ton premier verre";
+    return "T'es sobre";
+}
+
 function updateScoreDisplay(value) {
-    document.getElementById('score-value-display').textContent = value.toFixed(1);
-    currentScore = parseFloat(value);
+    const floatVal = parseFloat(value);
+    
+    // Mise à jour du chiffre au centre
+    document.getElementById('score-value-display').textContent = floatVal.toFixed(1);
+    
+    // Mise à jour du texte de description
+    const descriptionEl = document.getElementById('score-description');
+    if (descriptionEl) {
+        descriptionEl.textContent = getScoreDescription(floatVal);
+    }
+    
+    currentScore = floatVal;
 }
 
 async function sendScore() {

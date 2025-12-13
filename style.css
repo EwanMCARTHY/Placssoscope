@@ -78,6 +78,18 @@ body {
     pointer-events: none; /* Empêche de cliquer dessus par erreur */
 }
 
+.score-description {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 24px;
+    padding: 0 16px;
+    min-height: 1.5em; /* Empêche la page de sauter si le texte change de taille */
+    transition: opacity 0.2s ease;
+}
+
 /* ==========================================================================
    GESTION DES VUES (ÉCRANS)
    ========================================================================== */
