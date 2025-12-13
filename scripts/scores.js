@@ -209,10 +209,14 @@ function updateChart(selectedDays) {
             const color = `hsl(${(index * 50) % 360}, 70%, 60%)`;
             
             const getTime = (dateStr) => {
-                const d = new Date(dateStr);
-                let timeValue = d.getHours() + d.getMinutes() / 60;
-                // Gestion nuit : si < 10h, on ajoute 24h pour que ça suive 23h
-                if (d.getHours() < 10) timeValue += 24; 
+                if (!dateStr) return 0;
+                const parts = dateStr.split(' ');
+                const timeParts = parts[1].split(':');
+                const hour = parseInt(timeParts[0], 10);
+                const minute = parseInt(timeParts[1], 10);
+                
+                let timeValue = hour + minute / 60;
+                if (hour < 10) timeValue += 24; 
                 return timeValue;
             };
             

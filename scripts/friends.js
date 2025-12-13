@@ -31,9 +31,26 @@ function calculateXAxisBounds(datasets) {
 
 // Convertit une date SQL en heure décimale (ex: 22h30 -> 22.5, 02h00 -> 26.0)
 function getTime(dateStr) {
-    const d = new Date(dateStr);
-    let timeValue = d.getHours() + d.getMinutes() / 60;
-    if (d.getHours() < 10) timeValue += 24; 
+    // dateStr est au format "YYYY-MM-DD HH:MM:SS"
+    if (!dateStr) return 0;
+    
+    // On découpe la chaîne pour extraire l'heure brute
+    // Cela évite que le navigateur convertisse en heure locale ou plante sur iOS
+    const parts = dateStr.split(' '); // Sépare la date de l'heure
+    if (parts.length < 2) return 0; // Sécurité
+    
+    const timeParts = parts[1].split(':');
+    const hour = parseInt(timeParts[0], 10);
+    const minute = parseInt(timeParts[1], 10);
+    
+    let timeValue = hour + minute / 60;
+    
+    // Règle métier : la journée commence à 10h.
+    // Tout ce qui est avant 10h (00h-09h) appartient à la "nuit" de la veille (donc 24h-33h)
+    if (hour < 10) {
+        timeValue += 24;
+    }
+    
     return timeValue;
 }
 
