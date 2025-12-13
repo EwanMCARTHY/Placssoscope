@@ -1,67 +1,57 @@
 <?php
-session_start();
 header('Content-Type: application/json');
-
+session_start();
+// On définit la timezone pour être sûr, même si le gros du travail est fait en SQL
 date_default_timezone_set('Europe/Paris');
 
-// 1. Sécurité et validation
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Utilisateur non connecté.']);
+    echo json_encode(['success' => false, 'error' => 'Non connecté']);
     exit();
 }
 
-$friend_id = $_GET['friend_id'] ?? null;
-if (empty($friend_id) || !is_numeric($friend_id)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'ID de l\'ami manquant ou invalide.']);
+$user_id = $_SESSION['user_id'];
+$friend_user_id = $_GET['friend_id'] ?? null;
+
+if (!$friend_user_id) {
+    echo json_encode(['success' => false, 'error' => 'ID ami manquant']);
     exit();
 }
 
 try {
-    $db_host = 'localhost';
-    $db_name = 'u551125034_placssographe';
-    $db_user = 'u551125034_contact';
-    $db_pass = 'Ewan2004+';
-
-    $db = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_user, $db_pass);
+    $db = new PDO("mysql:host=localhost;dbname=u551125034_placssographe;charset=utf8", "u551125034_contact", "Ewan2004+");
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    $current_user_id = $_SESSION['user_id'];
+    // REQUÊTE CORRIGÉE AVEC LA LOGIQUE DES 10H
+    // On décale l'heure de création de 10h en arrière (DATE_SUB) avant de prendre la DATE.
+    // Ex: Le 15 à 02h00 -> devient le 14 à 16h00 -> DATE = Le 14.
+    
+    $sql = "
+        SELECT DISTINCT 
+            DATE(DATE_SUB(s1.created_at, INTERVAL 10 HOUR)) as evening_date,
+            dn1.custom_name as my_day_name,
+            dn2.custom_name as friend_day_name
+        FROM scores s1
+        JOIN scores s2 ON DATE(DATE_SUB(s1.created_at, INTERVAL 10 HOUR)) = DATE(DATE_SUB(s2.created_at, INTERVAL 10 HOUR))
+        LEFT JOIN day_names dn1 ON dn1.user_id = s1.user_id AND dn1.day_date = DATE(DATE_SUB(s1.created_at, INTERVAL 10 HOUR))
+        LEFT JOIN day_names dn2 ON dn2.user_id = s2.user_id AND dn2.day_date = DATE(DATE_SUB(s2.created_at, INTERVAL 10 HOUR))
+        WHERE s1.user_id = :my_id 
+        AND s2.user_id = :friend_id
+        ORDER BY evening_date DESC
+    ";
 
-    // 2. Requête SQL corrigée et optimisée
-    $stmt = $db->prepare(
-        "SELECT
-            dates.evening_date,
-            n1.custom_name as my_day_name,
-            n2.custom_name as friend_day_name
-        FROM (
-            -- Cette sous-requête identifie les dates où les DEUX utilisateurs ont enregistré des scores
-            SELECT DATE(s.created_at) as evening_date
-            FROM scores s
-            WHERE s.user_id IN (:current_user_id, :friend_id)
-            GROUP BY evening_date
-            HAVING COUNT(DISTINCT s.user_id) = 2
-        ) as dates
-        -- On joint ensuite les noms de journées pour chaque utilisateur
-        LEFT JOIN day_names n1 ON n1.day_date = dates.evening_date AND n1.user_id = :current_user_id
-        LEFT JOIN day_names n2 ON n2.day_date = dates.evening_date AND n2.user_id = :friend_id
-        ORDER BY dates.evening_date DESC"
-    );
-
+    $stmt = $db->prepare($sql);
     $stmt->execute([
-        'current_user_id' => $current_user_id,
-        'friend_id'       => $friend_id
+        'my_id' => $user_id,
+        'friend_id' => $friend_user_id
     ]);
 
     $evenings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 3. Renvoie le résultat
     echo json_encode($evenings);
 
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erreur de base de données: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Erreur: ' . $e->getMessage()]);
 }
 ?>
-
